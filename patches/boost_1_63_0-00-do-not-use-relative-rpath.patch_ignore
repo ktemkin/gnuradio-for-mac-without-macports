@@ -1,0 +1,31 @@
+commit da9ef94f458244f4c9321259e7ef580cd7d814d5
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Sat Feb 18 18:07:25 2017 -0500
+
+    Do not use relative rpath in .dylib
+    
+    Cannot import gnuradio.
+    
+    Is the model path environment variable set correctly?
+        All OS: PYTHONPATH
+    
+    Is the library path environment variable set correctly?
+        Linux: LD_LIBRARY_PATH
+        Windows: PATH
+        MacOSX: DYLD_LIBRARY_PATH
+    
+    (dlopen(/Applications/GNURadio.app/Contents/MacOS/usr/share/gnuradio/python/site-packages/gnuradio/gr/_runtime_swig.so, 2): Library not loaded: libboost_system.dylib
+      Referenced from: /Applications/GNURadio.app/Contents/MacOS/usr/lib/libboost_filesystem.dylib
+      Reason: unsafe use of relative rpath libboost_system.dylib in /Applications/GNURadio.app/Contents/MacOS/usr/lib/libboost_filesystem.dylib with restricted binary)
+
+diff --git a/tools/build/src/tools/clang-darwin.jam b/tools/build/src/tools/clang-darwin.jam
+index 6b6e198..6499658 100644
+--- a/tools/build/src/tools/clang-darwin.jam
++++ b/tools/build/src/tools/clang-darwin.jam
+@@ -185,5 +185,5 @@ actions link bind LIBRARIES
+ 
+ actions link.dll bind LIBRARIES
+ {
+-    "$(CONFIG_COMMAND)" $(USER_OPTIONS) -L"$(LINKPATH)" -o "$(<)" -single_module -dynamiclib -install_name "@rpath/$(<[1]:D=)" "$(>)"  "$(LIBRARIES)" $(START-GROUP) $(FINDLIBS-ST-PFX) -l$(FINDLIBS-ST) $(FINDLIBS-SA-PFX) -l$(FINDLIBS-SA) $(END-GROUP) $(OPTIONS)
++    "$(CONFIG_COMMAND)" $(USER_OPTIONS) -L"$(LINKPATH)" -o "$(<)" -single_module -dynamiclib -install_name "/Applications/GNURadio.app/Contents/MacOS/usr/lib/$(<[1]:D=)" "$(>)"  "$(LIBRARIES)" $(START-GROUP) $(FINDLIBS-ST-PFX) -l$(FINDLIBS-ST) $(FINDLIBS-SA-PFX) -l$(FINDLIBS-SA) $(END-GROUP) $(OPTIONS)
+ }

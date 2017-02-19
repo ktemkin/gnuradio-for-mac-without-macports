@@ -1,0 +1,27 @@
+diff --git a/lib/c_glib/Makefile.am b/lib/c_glib/Makefile.am
+index 452f6a4..631cab8 100755
+--- a/lib/c_glib/Makefile.am
++++ b/lib/c_glib/Makefile.am
+@@ -54,7 +54,9 @@ libthrift_c_glib_la_SOURCES = src/thrift/c_glib/thrift.c \
+                               src/thrift/c_glib/server/thrift_server.c \
+                               src/thrift/c_glib/server/thrift_simple_server.c
+ 
+-libthrift_c_glib_la_CFLAGS = $(AM_CFLAGS) $(GLIB_CFLAGS)
++libthrift_c_glib_la_CFLAGS = $(AM_CFLAGS) $(GLIB_CFLAGS) $(GOBJECT_CFLAGS)
++libthrift_c_glib_la_LDFLAGS = $(AM_LDFLAGS) $(GLIB_LDFLAGS) $(GOBJECT_LDFLAGS)
++libthrift_c_glib_la_LIBADD = $(GLIB_LIBS) $(GOBJECT_LIBS)
+ 
+ include_thriftdir = $(includedir)/thrift/c_glib
+ include_thrift_HEADERS = \
+diff --git a/lib/cpp/Makefile.am b/lib/cpp/Makefile.am
+index 2a1cca8..648be2a 100755
+--- a/lib/cpp/Makefile.am
++++ b/lib/cpp/Makefile.am
+@@ -149,6 +149,7 @@ libthriftqt_la_CXXFLAGS  = $(AM_CXXFLAGS)
+ libthriftqt5_la_CXXFLAGS  = $(AM_CXXFLAGS)
+ libthriftnb_la_LDFLAGS  = -release $(VERSION) $(BOOST_LDFLAGS)
+ libthriftz_la_LDFLAGS   = -release $(VERSION) $(BOOST_LDFLAGS)
++libthriftz_la_LIBADD   = libthrift.la $(ZLIB_LIBS)
+ libthriftqt_la_LDFLAGS   = -release $(VERSION) $(BOOST_LDFLAGS) $(QT_LIBS)
+ libthriftqt5_la_LDFLAGS   = -release $(VERSION) $(BOOST_LDFLAGS) $(QT5_LIBS)
+ 

@@ -1,0 +1,19 @@
+commit d7fdb405597a5a2ff4447b26c8c2b2bfe253cd5e
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Wed Feb 8 21:55:54 2017 -0500
+
+    add _Nonnull and _Nullable to lexer ignore primitives
+
+diff --git a/giscanner/scannerlexer.l b/giscanner/scannerlexer.l
+index 21ef570..66373cc 100644
+--- a/giscanner/scannerlexer.l
++++ b/giscanner/scannerlexer.l
+@@ -165,6 +165,8 @@ stringtext				([^\\\"])|(\\.)
+ "__inline"				{ return INLINE; }
+ "__nonnull" 			        { if (!parse_ignored_macro()) REJECT; }
+ "_Noreturn" 			        { /* Ignore */ }
++"_Nonnull" 			        { /* Ignore */ }
++"_Nullable" 			        { /* Ignore */ }
+ "__signed"                              { return SIGNED; }
+ "__signed__"				{ return SIGNED; }
+ "__restrict"				{ return RESTRICT; }

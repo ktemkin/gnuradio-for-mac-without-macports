@@ -1,0 +1,19 @@
+commit 382f57d5c68fe012129b1f3a709d2f6af64987f3
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Thu Feb 16 06:47:52 2017 -0500
+
+    use c++11
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ca13431..51967eb 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -64,7 +64,7 @@ ENDIF()
+ IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++98")
+ ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++98")
++    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+ ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++98")
+ ELSE()

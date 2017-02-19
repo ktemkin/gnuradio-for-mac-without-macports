@@ -1,0 +1,36 @@
+commit 937113723ec34abc9917742816684c40aaae9294
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Fri Feb 10 21:25:41 2017 -0500
+
+    patch to remove quicktime bs
+
+diff --git a/src/osx/carbon/dataobj.cpp b/src/osx/carbon/dataobj.cpp
+index c03c6a1..8d42551 100644
+--- a/src/osx/carbon/dataobj.cpp
++++ b/src/osx/carbon/dataobj.cpp
+@@ -29,10 +29,6 @@
+ 
+ #include "wx/osx/private.h"
+ 
+-#if wxOSX_USE_COCOA_OR_CARBON
+-    #include <QuickTime/QuickTime.h>
+-#endif
+-
+ // ----------------------------------------------------------------------------
+ // wxDataFormat
+ // ----------------------------------------------------------------------------
+diff --git a/src/osx/core/bitmap.cpp b/src/osx/core/bitmap.cpp
+index 3c61c17..3322b60 100644
+--- a/src/osx/core/bitmap.cpp
++++ b/src/osx/core/bitmap.cpp
+@@ -35,10 +35,6 @@ IMPLEMENT_DYNAMIC_CLASS(wxMask, wxObject)
+ #include "wx/osx/private.h"
+ #endif
+ 
+-#ifndef __WXOSX_IPHONE__
+-#include <QuickTime/QuickTime.h>
+-#endif
+-
+ CGColorSpaceRef wxMacGetGenericRGBColorSpace();
+ CGDataProviderRef wxMacCGDataProviderCreateWithMemoryBuffer( const wxMemoryBuffer& buf );
+ 

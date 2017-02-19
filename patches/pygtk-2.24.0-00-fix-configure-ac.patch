@@ -1,0 +1,19 @@
+commit d7261c780cd37b28dc04bec54c1167457a0f3742
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Sun Feb 5 21:06:27 2017 -0500
+
+    added AC_CONFIG_MACRO_DIR([m4]) to configure.ac
+
+diff --git a/configure.ac b/configure.ac
+index 84c78f6..2fdc174 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -31,6 +31,8 @@ AC_SUBST(PYGTK_MICRO_VERSION, pygtk_micro_version)
+ AC_CONFIG_SRCDIR([gtk/gtkmodule.c])
+ AM_CONFIG_HEADER(config.h)
+ 
++AC_CONFIG_MACRO_DIR([m4])
++
+ AM_INIT_AUTOMAKE
+ AC_CHECK_FUNCS(bind_textdomain_codeset)
+ 

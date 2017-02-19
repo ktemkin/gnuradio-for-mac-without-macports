@@ -1,0 +1,18 @@
+commit e7419975088c76f974bf1bbd935a7f9cf309fe4d
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Sat Feb 11 19:16:25 2017 -0500
+
+    do not make demands on linbootl
+
+diff --git a/configure.ac b/configure.ac
+index 8c474a6..a838dab 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -70,7 +70,6 @@ AC_PROG_MAKE_SET
+ dnl libtool/libtoolize; version 2.4.2 is the tested version. This or any
+ dnl compatible later version may be used
+ LT_INIT([win32-dll])
+-LT_PREREQ([2.4.2])
+ 
+ # Some awks crash when confronted with pnglibconf.dfa, do a test run now
+ # to make sure this doesn't happen
