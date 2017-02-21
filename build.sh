@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# XXX: @CF: if we are a tagged release then do not use GIT
+# Otherwise, tack on the contents of 'git rev-parse --short HEAD'
+GRFMWM_GIT_REVISION="-94ee402"
 GNURADIO_BRANCH=3.7.10.1
 
 # default os x path minus /usr/local/bin, which could have pollutants
@@ -95,6 +98,7 @@ function ncpus() {
   sysctl -n hw.ncpu
 }
 
+# XXX: @CF: use hash-checking for compressed archives
 function fetch() {
   local P=${1}
   local URL=${2}
@@ -1367,28 +1371,32 @@ if [ ! -f ${TMP_DIR}/${P}.done ]; then
   fetch ${P} ${URL} ${T} ${BRANCH}
   unpack ${P} ${URL} ${T} ${BRANCH}
   
+  #XXX: @CF: add --eula option with GPLv3. For now, just distribute LICENSE in dmg
+  
   cd ${TMP_DIR}/${P} \
   && I "copying GNURadio.app to temporary folder (this can take some time)" \
   && rm -Rf ${TMP_DIR}/${P}/temp \
-  && rm -f ${BUILD_DIR}/*GNURadio-${GNURADIO_BRANCH}.dmg \
+  && rm -f ${BUILD_DIR}/*GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
   && mkdir -p ${TMP_DIR}/${P}/temp \
   && rsync -ar ${APP_DIR} ${TMP_DIR}/${P}/temp \
+  && cp ${BUILD_DIR}/LICENSE ${TMP_DIR}/${P}/temp \
   && I "executing create-dmg.. (this can take some time)" \
   && ./create-dmg \
-    --volname "GNURadio-${GNURADIO_BRANCH}" \
+    --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
     --volicon ${BUILD_DIR}/gnuradio.icns \
     --background ${BUILD_DIR}/gnuradio-logo-noicon.png \
     --window-pos 200 120 \
     --window-size 550 400 \
-    --icon GNURadio.app 183 190 \
+    --icon LICENSE 137 190 \
+    --icon GNURadio.app 275 190 \
     --hide-extension GNURadio.app \
-    --app-drop-link 366 190 \
+    --app-drop-link 412 190 \
     --icon-size 100 \
-    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}.dmg \
+    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
     ${TMP_DIR}/${P}/temp \
-  || E "failed to create GNURadio-${GNURADIO_BRANCH}.dmg"
+  || E "failed to create GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
-I "finished creating GNURadio-${GNURADIO_BRANCH}.dmg"
+I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
   touch ${TMP_DIR}/.${P}.done 
 fi
