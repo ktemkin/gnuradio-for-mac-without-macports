@@ -1277,10 +1277,77 @@ mkdir -p ${CONTENTS_DIR} \
 </dict>
 </plist>
 EOF
-if [ $? -eq 0 ]; then
-  I created Info.plist
-else
+if [ $? -ne 0 ]; then
   E failed to create Info.plist
+fi
+I created Info.plist
+
+
+# create run-grc script
+
+I creating run-grc script
+
+# XXX: @CF: FIXME: the paths below should be not be generated rather than static
+cat > ${INSTALL_DIR}/usr/bin/run-grc << 'EOF'
+#!/bin/sh
+
+PYTHON=python2.7
+INSTALL_DIR=/Applications/GNURadio.app/Contents/MacOS
+PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages:${PYTHONPATH}
+GRSHARE=${INSTALL_DIR}/usr/share/gnuradio
+GRPP=${GRSHARE}/python/site-packages
+PYTHONPATH=${GRPP}:${PYTHONPATH}
+PATH=${INSTALL_DIR}/usr/bin:/opt/X11/bin:${PATH}
+
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/analog:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/audio:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/blocks:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/channels:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/digital:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fcd:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fft:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/filter:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/gr:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/noaa:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/pager:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/trellis:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/uhd:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/vocoder:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/wxgui:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/zeromq:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/pmt:${DYLD_LIBRARY_PATH}"
+
+PYTHONPATH="${GRPP}/gnuradio/analog:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/audio:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/blocks:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/channels:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/digital:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/fcd:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/fft:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/filter:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/gr:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/noaa:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/pager:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/trellis:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/uhd:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/vocoder:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/wxgui:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/zeromq:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/pmt:${PYTHONPATH}"
+
+export PYTHONPATH
+export PATH
+export DYLD_LIBRARY_PATH
+
+gnuradio-companion &
+
+exit 0
+EOF
+if [ $? -eq 0 ]; then
+  chmod +x ${INSTALL_DIR}/usr/bin/run-grc
+  I created run-grc script
+else
+  E failed to create run-grc script
 fi
 
   touch ${TMP_DIR}/.${P}.done 
@@ -1303,6 +1370,7 @@ if [ ! -f ${TMP_DIR}/${P}.done ]; then
   cd ${TMP_DIR}/${P} \
   && I "copying GNURadio.app to temporary folder (this can take some time)" \
   && rm -Rf ${TMP_DIR}/${P}/temp \
+  && rm -f ${BUILD_DIR}/*GNURadio-${GNURADIO_BRANCH}.dmg \
   && mkdir -p ${TMP_DIR}/${P}/temp \
   && rsync -ar ${APP_DIR} ${TMP_DIR}/${P}/temp \
   && I "executing create-dmg.. (this can take some time)" \
@@ -1320,6 +1388,9 @@ if [ ! -f ${TMP_DIR}/${P}.done ]; then
     ${TMP_DIR}/${P}/temp \
   || E "failed to create GNURadio-${GNURADIO_BRANCH}.dmg"
 
+I "finished creating GNURadio-${GNURADIO_BRANCH}.dmg"
+
   touch ${TMP_DIR}/.${P}.done 
 fi
 
+I '!!!!!! DONE !!!!!!'
