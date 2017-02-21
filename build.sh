@@ -1,7 +1,11 @@
 #!/bin/sh
 
+GNURADIO_BRANCH=3.7.10.1
+
 # default os x path minus /usr/local/bin, which could have pollutants
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+EXTS="zip tar.gz tar.bz2 tar.xz"
 
 SKIP_FETCH=true
 SKIP_AUTORECONF=
@@ -9,10 +13,16 @@ SKIP_LIBTOOLIZE=
 
 DEBUG=true
 
-EXTS="zip tar.gz tar.bz2 tar.xz"
+function top_srcdir() {
+  local r
+  pushd "$(dirname "${0}")" > /dev/null
+  r="$(pwd -P)"
+  popd > /dev/null
+  echo "${r}"
+}
 
 function I() {
-  echo ${@}
+  echo "I: ${@}"
 }
 
 function E() {
@@ -21,13 +31,13 @@ function E() {
   if [ 0 -eq $r ]; then
     r=1;
   fi
-  echo E: ${@} > /dev/stderr
+  echo "E: ${@}" > /dev/stderr
   exit 1;
 }
 
 function D() {
   if [ "" != "$DEBUG" ]; then
-    echo D: ${@}
+    echo "D: ${@}"
   fi
 }
 
@@ -36,10 +46,12 @@ function D() {
 
 XQUARTZ_APP_DIR=/Applications/Utilities/XQuartz.app
 
-#BUILD_DIR=${HOME}/Desktop/GNURadio_BUILD
-BUILD_DIR=${HOME}/Desktop/build-and-package-gnuradio-for-mac-os-x-without-macports
+BUILD_DIR="$(top_srcdir)"
 TMP_DIR=${BUILD_DIR}/tmp
-INSTALL_DIR=/Applications/GNURadio.app/Contents/MacOS
+APP_DIR=/Applications/GNURadio.app
+CONTENTS_DIR=${APP_DIR}/Contents
+RESOURCES_DIR=${CONTENTS_DIR}/Resources
+INSTALL_DIR=${CONTENTS_DIR}/MacOS
 
 function xpath_contains() {
   local x=${1}
@@ -91,7 +103,7 @@ function fetch() {
 
   I "fetching ${P} from ${URL}"
 
-  if [ "git" = "${URL:0:3}" ]; then
+  if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
     D "downloading to ${TMP_DIR}/${T}"
     if [ -d ${TMP_DIR}/${T} ]; then
       D "already downloaded ${P}"
@@ -131,7 +143,7 @@ function unpack() {
     T=${P}
   fi
 
-  if [ "git" = "${URL:0:3}" ]; then
+  if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
     I "resetting and checking out files from git"
     cd ${TMP_DIR}/${T} \
       && git reset \
@@ -312,6 +324,50 @@ function build_and_install_autotools() {
   unset SKIP_AUTORECONF
   unset SKIP_LIBTOOLIZE
 }
+
+#function create_icns_via_cairosvg() {
+#  local input="${1}"
+#  local output="${2}"
+#  local T="$(dirname ${output})/iconbuilder.iconset"
+#  
+#  mkdir -p ${T} \
+#  && cd ${T} \
+#  && for i in 16 32 128 256 512; do
+#    j=$((2*i)) \
+#    && I creating icon_${i}x${i}.png \
+#    && cairosvg ${input} -W ${i} -H ${i} -o ${T}/icon_${i}x${i}.png \
+#    && I creating icon_${i}x${i}@2x.png \
+#    && cairosvg ${input} -W ${j} -H ${j} -o ${T}/icon_${i}x${i}@2x.png \
+#    || E failed to create ${i}x${i} or ${i}x${i}@2x icons; \
+#  done \
+#  && iconutil -c icns -o ${output} ${T} \
+#  && I done creating ${output} \
+#  || E failed to create ${output} from ${input}
+#}
+
+#function create_icns_via_rsvg() {
+#  local input="${1}"
+#  local output="${2}"
+#  local T="$(dirname ${output})/iconbuilder.iconset"
+#  
+#  mkdir -p ${T} \
+#  && cd ${T} \
+#  && for i in 16 32 128 256 512; do
+#    j=$((2*i)) \
+#    && I creating icon_${i}x${i}.png \
+#    && rsvg-convert ${input} -W ${i} -H ${i} -o ${T}/icon_${i}x${i}.png \
+#    && I creating icon_${i}x${i}@2x.png \
+#    && rsvg-convert ${input} -W ${j} -H ${j} -o ${T}/icon_${i}x${i}@2x.png \
+#    || E failed to create ${i}x${i} or ${i}x${i}@2x icons; \
+#  done \
+#  && iconutil -c icns -o ${output} ${T} \
+#  && I done creating ${output} \
+#  || E failed to create ${output} from ${input}
+#}
+
+#
+# misc
+# 
 
 MAKE="make -j$(ncpus)"
 PYTHON=python2.7
@@ -697,6 +753,23 @@ cd
     ${URL}
 
 #
+# Install jpeg
+#
+
+P=jpegsrc.v6b
+URL=http://mirror.csclub.uwaterloo.ca/slackware/slackware-8.1/source/ap/ghostscript/jpegsrc.v6b.tar.gz
+T=jpeg-6b
+
+  SKIP_AUTORECONF=yes \
+  SKIP_LIBTOOLIZE=yes \
+  EXTRA_OPTS="--mandir=${INSTALL_DIR}/usr/share/man" \
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${T}
+
+
+#
 # Install pixman
 # 
 
@@ -1048,7 +1121,7 @@ fi
 P=gnuradio
 URL=git://github.com/gnuradio/gnuradio.git
 T=${P}
-BRANCH=v3.7.10.1
+BRANCH=v${GNURADIO_BRANCH}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
@@ -1093,15 +1166,160 @@ build_and_install_cmake \
 # Install gr-osmosdr
 #
 
-P=gr-osmosdr
-URL=git://git.osmocom.org/gr-osmosdr
-T=${P}
-BRANCH=v0.1.4
+#P=gr-osmosdr
+#URL=git://git.osmocom.org/gr-osmosdr
+#T=${P}
+#BRANCH=v0.1.4
+#
+#LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+#EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}" \
+#build_and_install_cmake \
+#  ${P} \
+#  ${URL} \
+#  ${T} \
+#  ${BRANCH}
 
-LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
-EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}" \
-build_and_install_cmake \
-  ${P} \
-  ${URL} \
-  ${T} \
-  ${BRANCH}
+## XXX: @CF: requires librsvg which requires Rust... meh!
+##
+## Install CairoSVG
+## 
+#
+#  P=CairoSVG
+#  URL=https://github.com/Kozea/CairoSVG.git
+#  T=${P}
+#  BRANCH=1.0.22
+#
+#LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+#build_and_install_setup_py \
+#  ${P} \
+#  ${URL} \
+#  ${T} \
+#  ${BRANCH}
+
+## XXX: @CF requires rust... FML!!
+##
+## Get rsvg-convert
+##
+#
+#P=librsvg
+#URL=git://git.gnome.org/librsvg
+#T=${P}
+#BRANCH=2.41.0
+#
+#  EXTRA_OPTS="" \
+#  build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${T} \
+#    ${BRANCH}
+
+#
+# Create the GNURadio.app bundle
+# 
+
+  P=gr-logo
+  URL=https://github.com/gnuradio/gr-logo.git
+  T=${P}
+  BRANCH="master"
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH} 
+
+  # create the gnuradio.icns
+
+#  create_icns_via_rsvg \
+#    ${TMP_DIR}/${P}/gnuradio_logo_icon_square.svg \
+#    ${TMP_DIR}/${P}/gnuradio.icns \
+#  || E failed to create gnuradio.icns
+
+#  create_icns_via_cairosvg \
+#    ${TMP_DIR}/${P}/gnuradio_logo_icon_square.svg \
+#    ${TMP_DIR}/${P}/gnuradio.icns \
+#  || E failed to create gnuradio.icns
+
+#  mkdir -p ${RESOURCES_DIR}/ \
+#  && cp ${TMP_DIR}/${P}/gnuradio.icns ${RESOURCES_DIR}/ \
+#  && I copied gnuradio.icns to ${RESOURCES_DIR} \
+#  || E failed to install gnuradio.icns
+
+  mkdir -p ${RESOURCES_DIR}/ \
+  && cp ${BUILD_DIR}/gnuradio.icns ${RESOURCES_DIR}/ \
+  && I copied gnuradio.icns to ${RESOURCES_DIR} \
+  || E failed to install gnuradio.icns
+
+  # create Info.plist
+
+mkdir -p ${CONTENTS_DIR} \
+&& I creating Info.plist \
+&& cat > ${CONTENTS_DIR}/Info.plist <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleGetInfoString</key>
+  <string>GNURadio</string>
+  <key>CFBundleExecutable</key>
+  <string>usr/bin/run-grc</string>
+  <key>CFBundleIdentifier</key>
+  <string>org.gnuradio.gnuradio-companion</string>
+  <key>CFBundleName</key>
+  <string>GNURadio</string>
+  <key>CFBundleIconFile</key>
+  <string>gnuradio.icns</string>
+  <key>CFBundleShortVersionString</key>
+  <string>${GNURADIO_BRANCH}</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+</dict>
+</plist>
+EOF
+if [ $? -eq 0 ]; then
+  I created Info.plist
+else
+  E failed to create Info.plist
+fi
+
+  touch ${TMP_DIR}/.${P}.done 
+fi
+
+#
+# Create .dmg file
+#
+
+P=create-dmg
+URL=https://github.com/andreyvit/create-dmg.git
+T=${P}
+BRANCH=master
+
+if [ ! -f ${TMP_DIR}/${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${P} \
+  && I "copying GNURadio.app to temporary folder (this can take some time)" \
+  && rm -Rf ${TMP_DIR}/${P}/temp \
+  && mkdir -p ${TMP_DIR}/${P}/temp \
+  && rsync -ar ${APP_DIR} ${TMP_DIR}/${P}/temp \
+  && I "executing create-dmg.. (this can take some time)" \
+  && ./create-dmg \
+    --volname "GNURadio-${GNURADIO_BRANCH}" \
+    --volicon ${BUILD_DIR}/gnuradio.icns \
+    --background ${BUILD_DIR}/gnuradio-logo-noicon.png \
+    --window-pos 200 120 \
+    --window-size 550 400 \
+    --icon GNURadio.app 183 190 \
+    --hide-extension GNURadio.app \
+    --app-drop-link 366 190 \
+    --icon-size 100 \
+    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}.dmg \
+    ${TMP_DIR}/${P}/temp \
+  || E "failed to create GNURadio-${GNURADIO_BRANCH}.dmg"
+
+  touch ${TMP_DIR}/.${P}.done 
+fi
+

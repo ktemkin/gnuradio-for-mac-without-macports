@@ -1,0 +1,13 @@
+diff --git a/makefile.cfg b/makefile.cfg
+index f25e42e..63911aa 100644
+--- a/makefile.cfg
++++ b/makefile.cfg
+@@ -17,7 +17,7 @@ includedir = $(prefix)/include
+ binprefix =
+ manprefix =
+ manext = 1
+-mandir = $(prefix)/man/man$(manext)
++mandir = $(prefix)/share/man/man$(manext)
+ 
+ # The name of your C compiler:
+ CC= @CC@
