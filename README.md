@@ -15,7 +15,7 @@ Following Apple conventions, installation is easy.
 
 Simply [download a release](https://github.com/cfriedt/gnuradio-for-mac-without-macports/releases), open the DMG file, and then drag & drop GNURadio into your Applications directory.
 
-<a href="https://github.com/cfriedt/gnuradio-for-mac-without-macports/releases" target="_blank"><img src="https://raw.githubusercontent.com/cfriedt/gnuradio-for-mac-without-macports/master/misc/screenshot.png" /></a>
+<a href="https://github.com/cfriedt/gnuradio-for-mac-without-macports/releases" target="_blank"><img src="https://raw.githubusercontent.com/cfriedt/gnuradio-for-mac-without-macports/master/screenshot.png" /></a>
 
 ## Motivation
 
