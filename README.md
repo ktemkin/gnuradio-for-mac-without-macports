@@ -19,7 +19,7 @@ Simply [download a release](https://github.com/cfriedt/gnuradio-for-mac-without-
 
 ## Motivation
 
-Some users just do not want to install [MacPorts](https://www.macports.org) just to use GNURadio. We get it. To each their own.
+Some users just do not want to install [MacPorts](https://www.macports.org) only to use GNURadio. We get it. To each their own.
 
 ## Getting Started
 
