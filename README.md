@@ -35,7 +35,11 @@ TODO: write #exactsteps [Issue #9](https://github.com/cfriedt/gnuradio-for-mac-w
 
 ## DIY
 
-For those who desperately want to build GNURadio for Mac from scratch using our method, you will only need two requirements listed above and to run [build.sh](https://github.com/cfriedt/gnuradio-for-mac-without-macports/blob/master/build.sh). Building will take some amount of time, but it should work without any errors.
+For those who desperately want to build GNURadio for Mac from scratch using our method, you will only need two requirements listed above and to run [build.sh](https://github.com/cfriedt/gnuradio-for-mac-without-macports/blob/master/build.sh).
+
+TODO: #exactsteps for building DIY [Issue #10](https://github.com/cfriedt/gnuradio-for-mac-without-macports/issues/10)
+
+Keep in mind, that building most dependencies from scratch will take some amount of time, but it should work without any errors.
 
 If you encounter any errors, or if there is a particular runtime bug or feature that you would like to see, please create a new [Issue](https://github.com/cfriedt/gnuradio-for-mac-without-macports/issues).
 
