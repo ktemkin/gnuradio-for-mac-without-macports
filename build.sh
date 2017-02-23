@@ -1167,21 +1167,95 @@ build_and_install_cmake \
 #
 
 #
+# Install osmo-sdr
+#
+
+P=osmo-sdr-0.1
+URL=http://cgit.osmocom.org/osmo-sdr/snapshot/osmo-sdr-0.1.tar.xz
+T=${P}/software/libosmosdr
+
+EXTRA_OPTS="" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${T}
+
+#
+# Install libhackrf
+#
+
+P=hackrf-2017.02.1
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
+T=${P}/host
+
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T}
+
+#
+# Install libbladerf
+#
+
+P=bladeRF-2016.06
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/bladerf-2016.06.tar.gz
+T=${P}/host
+
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T}
+
+#
+# Install libairspy
+#
+
+P=airspy
+URL=https://github.com/airspy/host.git
+T=${P}
+BRANCH=v1.0.9
+
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
+
+#
+# Install libmirisdr
+#
+
+P=libmirisdr
+URL=git://git.osmocom.org/libmirisdr
+T=${P}
+BRANCH=master
+
+EXTRA_OPTS="" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
+
+#
 # Install gr-osmosdr
 #
 
-#P=gr-osmosdr
-#URL=git://git.osmocom.org/gr-osmosdr
-#T=${P}
-#BRANCH=v0.1.4
-#
-#LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
-#EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}" \
-#build_and_install_cmake \
-#  ${P} \
-#  ${URL} \
-#  ${T} \
-#  ${BRANCH}
+P=gr-osmosdr
+URL=git://git.osmocom.org/gr-osmosdr
+T=${P}
+BRANCH=v0.1.4
+
+LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
 
 ## XXX: @CF: requires librsvg which requires Rust... meh!
 ##
