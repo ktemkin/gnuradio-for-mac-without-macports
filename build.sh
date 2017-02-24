@@ -941,31 +941,197 @@ build_and_install_autotools \
     ${P} \
     ${URL}
 
-##
-## Install cblas
-## 
-## XXX: @CF: requires either f2c or gfortran, both of which I don't care for right now
-#  P=cblas
-#  URL='http://www.netlib.org/blas/blast-forum/cblas.tgz'
-#  T=CBLAS
 #
-#  EXTRA_OPTS="" \
-#  build_and_install_cmake \
-#    ${P} \
-#    ${URL} \
-#    ${T}
+# Install f2c
+#
 
-##
-## Install gnu scientific library
-## 
-## XXX: @CF: required by gr-wavelet, depends on cblas
+P=f2c
+URL=https://github.com/barak/f2c.git
+T=${P}
+BRANCH=master
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T}/src \
+  && rm -f Makefile \
+  && cp makefile.u Makefile \
+  && I building f2c \
+  && ${MAKE} \
+  && I installing f2c \
+  && cp f2c ${INSTALL_DIR}/usr/bin \
+  && cp f2c.h ${INSTALL_DIR}/usr/include \
+  && cp ${BUILD_DIR}/scripts/gfortran-wrapper.sh ${INSTALL_DIR}/usr/bin/gfortran \
+  && chmod +x ${INSTALL_DIR}/usr/bin/gfortran \
+    || E "failed to build and install f2c"  
+
+  touch ${TMP_DIR}/.${P}.done
+fi
+
 #
-#  P=gsl-2.3
-#  URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
+# Install libf2c
 #
-#  build_and_install_autotools \
-#    ${P} \
-#    ${URL}
+
+P=libf2c-20130927
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libf2c-20130927.zip
+T=${P}
+BRANCH=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  
+  rm -Rf ${TMP_DIR}/${T} \
+  && mkdir -p ${TMP_DIR}/${T} \
+  && cd ${TMP_DIR}/${T} \
+  && unzip ${TMP_DIR}/${P}.zip \
+  || E "failed to extract ${P}.zip"
+  
+  cd ${TMP_DIR}/${T}/ \
+  && rm -f Makefile \
+  && cp makefile.u Makefile \
+  && I building ${P} \
+  && ${MAKE} \
+  && I installing ${P} \
+  && cp libf2c.a ${INSTALL_DIR}/usr/lib \
+  || E "failed to build and install libf2c"
+
+#  && mkdir -p foo \
+#  && cd foo \
+#  && ar x ../libf2c.a \
+#  && rm main.o getarg_.o iargc_.o \
+#  && \
+#  ${CC} \
+#    ${LDFLAGS} \
+#    -dynamiclib \
+#    -install_name ${INSTALL_DIR}/usr/lib/libf2c.dylib \
+#    -o ../libf2c.dylib \
+#    *.o \
+#  && cd .. \
+
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install blas
+#
+
+P=blas-3.7.0
+URL=http://www.netlib.org/blas/blas-3.7.0.tgz
+T=BLAS-3.7.0
+BRANCH=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T}/ \
+  && I building ${P} \
+  && \
+    for i in *.f; do \
+      j=${i/.f/.c} \
+      && k=${j/.c/.o} \
+      && I "f2c ${i} > ${j}" \
+      && f2c ${i} > ${j} 2>/dev/null \
+      && I "[CC] ${k}" \
+      && \
+        ${CC} \
+          -I${INSTALL_DIR}/usr/include \
+          -c ${j} \
+          -o ${k} \
+      || E "build of ${P} failed"; \
+    done \
+  && I creating libblas.a \
+  && libtool -static -o libblas.a *.o \
+  && cp libblas.a ${INSTALL_DIR}/usr/lib/ \
+  || E "failed to build and install libblas"  
+
+#  && I creating libblas.dylib \
+#  && \
+#    ${CC} \
+#      ${LDFLAGS} \
+#      -dynamiclib \
+#      -install_name ${INSTALL_DIR}/usr/lib/libblas.dylib \
+#      -o libblas.dylib \
+#      *.o \
+#      -lf2c \
+  
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install cblas
+# 
+# XXX: @CF: requires either f2c or gfortran, both of which I don't care for right now
+  P=cblas
+  URL='http://www.netlib.org/blas/blast-forum/cblas.tgz'
+  T=CBLAS
+  BRANCH=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+
+  cd ${TMP_DIR}/${T}/src \
+  && cd ${TMP_DIR}/${T}/src \
+  && I compiling.. \
+  && ${MAKE} CFLAGS="${CPPFLAGS} -DADD_" all \
+  && I building static library \
+  && mkdir -p ${TMP_DIR}/${T}/libcblas \
+  && cd ${TMP_DIR}/${T}/libcblas \
+  && ar x ${TMP_DIR}/${T}/lib/cblas_LINUX.a \
+  && libtool -static -o ../libcblas.a *.o \
+  && cd ${TMP_DIR}/${T} \
+  && I installing ${P} to ${INSTALL_DIR}/usr/lib \
+  && cp ${TMP_DIR}/${T}/libcblas.* ${INSTALL_DIR}/usr/lib \
+  && cp ${TMP_DIR}/${T}/include/*.h ${INSTALL_DIR}/usr/include \
+  || E failed to make cblas
+
+#  && I building dynamic library \
+#  && cd ${TMP_DIR}/${T}/lib/ \
+#  && mkdir foo \
+#  && cd foo \
+#  && ar x ../*.a \
+#  && ${CC} \
+#    ${LDFLAGS} \
+#    -dynamiclib \
+#    -install_name ${INSTALL_DIR}/usr/lib/libcblas.dylib \
+#    -o ${TMP_DIR}/${T}/lib/libcblas.dylib \
+#    *.o \
+#    -lf2c \
+#    -lblas \
+
+
+#  && \
+#  for i in *.f; do \
+#    j=${i/.f/.c} \
+#    && I converting ${i} to ${j} using f2c \
+#    && f2c ${i} | tee ${j} \
+#    && mv ${i}{,_ignore} \
+#    || E f2c ${i} failed; \
+#  done \
+#  && I done converting .f to .c \
+
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install gnu scientific library
+# 
+# XXX: @CF: required by gr-wavelet, depends on cblas
+
+  P=gsl-2.3
+  URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
+
+  LDFLAGS="${LDFLAGS} -lcblas -lblas -lf2c" \
+  EXTRA_OPTS="" \
+  build_and_install_autotools \
+    ${P} \
+    ${URL}
 
 #
 # Install libusb
@@ -1136,7 +1302,6 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
   
   fetch volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
   unpack volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
-fi
 
 EXTRA_OPTS="\
   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
@@ -1160,6 +1325,8 @@ build_and_install_cmake \
 #  ln -sf ${i} ${INSTALL_DIR}/usr/lib; \
 #done
 
+  touch ${TMP_DIR}/.${P}.done
+fi
 
 
 #      -DSDL_INCLUDE_DIR=${INSTALL_DIR}/usr/include/SDL2 \
@@ -1300,7 +1467,7 @@ build_and_install_cmake \
   T=${P}
   BRANCH="master"
 
-if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+#if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
   fetch ${P} ${URL} ${T} ${BRANCH}
   unpack ${P} ${URL} ${T} ${BRANCH} 
@@ -1428,8 +1595,8 @@ else
   E failed to create run-grc script
 fi
 
-  touch ${TMP_DIR}/.${P}.done 
-fi
+#  touch ${TMP_DIR}/.${P}.done 
+#fi
 
 #
 # Create .dmg file
@@ -1440,7 +1607,7 @@ URL=https://github.com/andreyvit/create-dmg.git
 T=${P}
 BRANCH=master
 
-if [ ! -f ${TMP_DIR}/${P}.done ]; then
+#if [ ! -f ${TMP_DIR}/${P}.done ]; then
 
   fetch ${P} ${URL} ${T} ${BRANCH}
   unpack ${P} ${URL} ${T} ${BRANCH}
@@ -1472,7 +1639,7 @@ if [ ! -f ${TMP_DIR}/${P}.done ]; then
 
 I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
-  touch ${TMP_DIR}/.${P}.done 
-fi
+#  touch ${TMP_DIR}/.${P}.done 
+#fi
 
 I '!!!!!! DONE !!!!!!'
