@@ -286,6 +286,11 @@ function build_and_install_autotools() {
   local URL=${2}
   local T=${3}
   local BRANCH=${4}
+  local CONFIGURE_CMD=${5}
+  
+  if [ "" = "${CONFIGURE_CMD}" ]; then
+    CONFIGURE_CMD="./configure --prefix=${INSTALL_DIR}/usr"
+  fi
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -314,7 +319,8 @@ function build_and_install_autotools() {
   
     I "Configuring and building in ${T}"
     cd ${TMP_DIR}/${T} \
-      && ./configure --prefix=${INSTALL_DIR}/usr ${EXTRA_OPTS} \
+      && I "${CONFIGURE_CMD} ${EXTRA_OPTS}" \
+      && ${CONFIGURE_CMD} ${EXTRA_OPTS} \
       && ${MAKE} \
       && ${MAKE} install \
       || E "failed to configure, make, and install ${P}"
@@ -1283,6 +1289,64 @@ fi
     ${URL} \
     ${T} \
     ${BRANCH}
+
+#
+# Install QT
+#
+
+P=qt-everywhere-opensource-src-4.8.7
+URL=https://www.mirrorservice.org/sites/download.qt-project.org/official_releases/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz
+T=${P}
+BRANCH=""
+
+SKIP_AUTORECONF="yes" \
+SKIP_LIBTOOLIZE="yes" \
+CXX="${CXX} -mmacosx-version-min=10.7 ${CPPFLAGS}" \
+CC="${CC} -mmacosx-version-min=10.7 ${CPPFLAGS}" \
+LD="${CXX} -mmacosx-version-min=10.7 ${LDFLAGS/-Wl,-undefined,error/} -Wl,-framework,CoreText -Wl,-framework,CoreGraphics" \
+EXTRA_OPTS="\
+  -qpa cocoa \
+  -prefix ${INSTALL_DIR}/usr \
+  -release \
+  -confirm-license \
+  -opensource \
+  -no-system-proxies \
+  -no-qt3support \
+  -no-xmlpatterns \
+  -no-audio-backend \
+  -no-phonon \
+  -no-phonon-backend \
+  -no-webkit \
+  -no-javascript-jit \
+  -no-script \
+  -no-scripttools \
+  -no-declarative \
+  -graphicssystem opengl \
+  -no-libmng \
+  -nomake demos \
+  -nomake examples \
+  -no-multimedia \
+  -no-audio-backend \
+  -no-phonon \
+  -no-phonon-backend \
+  -no-gif \
+  -no-webkit \
+  -no-libtiff \
+  -no-nis \
+  -no-openssl \
+  -rpath \
+  -no-dbus \
+  -no-cups \
+  -cocoa \
+  -no-framework \
+  -arch x86_64 \
+" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${T} \
+  "${BRANCH}" \
+  "./configure -prefix ${INSTALL_DIR}/usr "
 
 #
 # Install gnuradio

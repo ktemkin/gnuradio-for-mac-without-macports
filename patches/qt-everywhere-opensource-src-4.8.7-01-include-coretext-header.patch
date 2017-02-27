@@ -1,0 +1,18 @@
+diff --git a/src/gui/text/qfontengine_coretext_p.h b/src/gui/text/qfontengine_coretext_p.h
+index 5a46c98..192e05c 100644
+--- a/src/gui/text/qfontengine_coretext_p.h
++++ b/src/gui/text/qfontengine_coretext_p.h
+@@ -44,11 +44,11 @@
+ 
+ #include <private/qfontengine_p.h>
+ 
+-#if defined(Q_OS_IOS)
++//#if defined(Q_OS_IOS)
+ #include <CoreText/CoreText.h>
+ #include <CoreGraphics/CoreGraphics.h>
+ #include <private/qcore_mac_p.h>
+-#endif
++//#endif
+ 
+ #if !defined(Q_WS_MAC) || (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+ 
