@@ -1811,6 +1811,20 @@ BRANCH=master
   && rsync -ar ${APP_DIR} ${TMP_DIR}/${P}/temp \
   && cp ${BUILD_DIR}/LICENSE ${TMP_DIR}/${P}/temp \
   && I "executing create-dmg.. (this can take some time)" \
+  && I "create-dmg \
+    --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
+    --volicon ${BUILD_DIR}/gnuradio.icns \
+    --background ${BUILD_DIR}/gnuradio-logo-noicon.png \
+    --window-pos 200 120 \
+    --window-size 550 400 \
+    --icon LICENSE 137 190 \
+    --icon GNURadio.app 275 190 \
+    --hide-extension GNURadio.app \
+    --app-drop-link 412 190 \
+    --icon-size 100 \
+    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
+    ${TMP_DIR}/${P}/temp \
+  " \
   && ./create-dmg \
     --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
     --volicon ${BUILD_DIR}/gnuradio.icns \
