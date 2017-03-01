@@ -1404,6 +1404,12 @@ URL=https://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
 T=${P}
 BRANCH=""
 
+SHOULD_DO_REBUILD=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+  SHOULD_DO_REBUILD="yes"
+fi
+
 QMAKE_CXX="${CXX}" \
 QMAKE_CXXFLAGS="${CPPFLAGS}" \
 QMAKE_LFLAGS="${LDFLAGS}" \
@@ -1413,6 +1419,16 @@ build_and_install_qmake \
   ${URL} \
   ${T} \
   ${BRANCH}
+
+if [ "yes" = "${SHOULD_DO_REBUILD}" ]; then
+  cd ${TMP_DIR}/${T} \
+  && I re-doing final link because qwt does not respect QMAKE_LFLAGS_SONAME \
+  && git apply ${BUILD_DIR}/patches/qwt-bullshit.diff \
+  && rm lib/* \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E failed to build and install ${P}
+fi
 
 #
 # Install sip
@@ -1734,37 +1750,47 @@ PYTHONPATH=${GRPP}:${PYTHONPATH}
 PATH=${INSTALL_DIR}/usr/bin:/opt/X11/bin:${PATH}
 
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/analog:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/atsc:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/audio:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/blocks:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/channels:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/digital:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/dtv:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fcd:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fec:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fft:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/filter:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/gr:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/noaa:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/pager:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/qtgui:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/trellis:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/uhd:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/vocoder:${DYLD_LIBRARY_PATH}"
+DYLD_LIBRARY_PATH="${GRPP}/gnuradio/wavelet:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/wxgui:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/gnuradio/zeromq:${DYLD_LIBRARY_PATH}"
 DYLD_LIBRARY_PATH="${GRPP}/pmt:${DYLD_LIBRARY_PATH}"
 
 PYTHONPATH="${GRPP}/gnuradio/analog:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/atsc:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/audio:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/blocks:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/channels:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/digital:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/dtv:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/fcd:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/fec:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/fft:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/filter:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/gr:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/noaa:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/pager:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/qtgui:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/trellis:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/uhd:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/vocoder:${PYTHONPATH}"
+PYTHONPATH="${GRPP}/gnuradio/wavelet:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/wxgui:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/gnuradio/zeromq:${PYTHONPATH}"
 PYTHONPATH="${GRPP}/pmt:${PYTHONPATH}"
