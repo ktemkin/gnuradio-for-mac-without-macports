@@ -316,7 +316,7 @@ function build_and_install_autotools() {
         && libtoolize -if \
         || E "libtoolize failed for ${P}"
     fi
-  
+
     I "Configuring and building in ${T}"
     cd ${TMP_DIR}/${T} \
       && I "${CONFIGURE_CMD} ${EXTRA_OPTS}" \
@@ -324,6 +324,42 @@ function build_and_install_autotools() {
       && ${MAKE} \
       && ${MAKE} install \
       || E "failed to configure, make, and install ${P}"
+  
+    I "finished building and installing ${P}"
+    
+    touch ${TMP_DIR}/.${P}.done
+    
+  fi
+  
+  unset SKIP_AUTORECONF
+  unset SKIP_LIBTOOLIZE
+}
+
+function build_and_install_qmake() {
+
+  local P=${1}
+  local URL=${2}
+  local T=${3}
+  local BRANCH=${4}
+  
+  if [ "" = "${T}" ]; then
+    T=${P}
+  fi
+
+  if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"
+  else 
+  
+    fetch ${P} ${URL} ${T} ${BRANCH}
+    unpack ${P} ${URL} ${T} ${BRANCH}
+  
+    I "Configuring and building in ${T}"
+    cd ${TMP_DIR}/${T} \
+      && I "qmake ${EXTRA_OPTS}" \
+      && qmake ${EXTRA_OPTS} \
+      && ${MAKE} \
+      && ${MAKE} install \
+      || E "failed to make and install ${P}"
   
     I "finished building and installing ${P}"
     
@@ -1299,11 +1335,15 @@ URL=https://www.mirrorservice.org/sites/download.qt-project.org/official_release
 T=${P}
 BRANCH=""
 
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+  INSTALL_QGL="yes"
+fi
+
 SKIP_AUTORECONF="yes" \
 SKIP_LIBTOOLIZE="yes" \
 CXX="${CXX} -mmacosx-version-min=10.7 ${CPPFLAGS}" \
 CC="${CC} -mmacosx-version-min=10.7 ${CPPFLAGS}" \
-LD="${CXX} -mmacosx-version-min=10.7 ${LDFLAGS/-Wl,-undefined,error/} -Wl,-framework,CoreText -Wl,-framework,CoreGraphics" \
+LD="${CXX} -mmacosx-version-min=10.7 ${LDFLAGS/-Wl,-undefined,error/} -Wl,-framework,CoreText -Wl,-framework,CoreGraphics -Wl,-framework,OpenGL" \
 EXTRA_OPTS="\
   -qpa cocoa \
   -prefix ${INSTALL_DIR}/usr \
@@ -1347,6 +1387,91 @@ build_and_install_autotools \
   ${T} \
   "${BRANCH}" \
   "./configure -prefix ${INSTALL_DIR}/usr "
+
+if [ "yes" = "${INSTALL_QGL}" ]; then
+  cd ${TMP_DIR}/${T}/src/opengl \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E "failed to install qgl"
+fi
+
+#
+# Install qwt
+#
+
+P=qwt-6.1.3
+URL=https://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
+T=${P}
+BRANCH=""
+
+QMAKE_CXX="${CXX}" \
+QMAKE_CXXFLAGS="${CPPFLAGS}" \
+QMAKE_LFLAGS="${LDFLAGS}" \
+EXTRA_OPTS="qwt.pro" \
+build_and_install_qmake \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
+
+#
+# Install sip
+#
+
+P=sip-4.19.1
+URL=https://svwh.dl.sourceforge.net/project/pyqt/sip/sip-4.19.1/sip-4.19.1.tar.gz
+T=${P}
+BRANCH=""
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+  I already installed ${P}
+else
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T} \
+  && ${PYTHON} configure.py \
+    --arch=x86_64 \
+    -b ${INSTALL_DIR}/usr/bin \
+    -d ${PYTHONPATH} \
+    -e ${INSTALL_DIR}/usr/include \
+    -v ${INSTALL_DIR}/usr/share/sip \
+    --stubsdir=${PYTHONPATH} \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E failed to build
+    
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install PyQt4
+#
+
+P=PyQt4_gpl_x11-4.12
+URL=https://superb-sea2.dl.sourceforge.net/project/pyqt/PyQt4/PyQt-4.12/PyQt4_gpl_x11-4.12.tar.gz
+T=${P}
+BRANCH=""
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+  I already installed ${P}
+else
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T} \
+  && ${PYTHON} configure.py \
+    --confirm-license \
+    -b ${INSTALL_DIR}/usr/bin \
+    -d ${PYTHONPATH} \
+    -e ${INSTALL_DIR}/usr/include \
+    -v ${INSTALL_DIR}/usr/share/sip \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E failed to build
+    
+  touch ${TMP_DIR}/.${P}.done
+fi
 
 #
 # Install gnuradio
