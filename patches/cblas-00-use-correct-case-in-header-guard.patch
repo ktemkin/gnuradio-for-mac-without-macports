@@ -1,0 +1,13 @@
+diff --git a/include/cblas_f77.h b/include/cblas_f77.h
+index 18435cd..28f8bb3 100644
+--- a/include/cblas_f77.h
++++ b/include/cblas_f77.h
+@@ -7,7 +7,7 @@
+  */
+ 
+ #ifndef CBLAS_F77_H
+-#define CBLAS_f77_H
++#define CBLAS_F77_H
+ 
+ #ifdef CRAY
+    #include <fortran.h>

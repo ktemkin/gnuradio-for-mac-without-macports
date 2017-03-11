@@ -1,0 +1,13 @@
+diff --git a/create-dmg b/create-dmg
+index 3e55dd9..ece6cab 100755
+--- a/create-dmg
++++ b/create-dmg
+@@ -145,7 +145,7 @@ fi
+ echo "Creating disk image..."
+ test -f "${DMG_TEMP_NAME}" && rm -f "${DMG_TEMP_NAME}"
+ ACTUAL_SIZE=`du -sm "$SRC_FOLDER" | sed -e 's/	.*//g'`
+-DISK_IMAGE_SIZE=$(expr $ACTUAL_SIZE + 20)
++DISK_IMAGE_SIZE=$(expr $ACTUAL_SIZE + 150)
+ hdiutil create -srcfolder "$SRC_FOLDER" -volname "${VOLUME_NAME}" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDRW -size ${DISK_IMAGE_SIZE}m "${DMG_TEMP_NAME}"
+ 
+ # mount it

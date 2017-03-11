@@ -1,0 +1,13 @@
+diff --git a/src/Makefile b/src/Makefile
+index 1dbdd42..cee30f8 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -15,7 +15,7 @@ CFLAGS        = -pipe -O2 -Wall -W -fPIC $(DEFINES)
+ CXXFLAGS      = -pipe -O2 -Wall -W -fPIC $(DEFINES)
+ INCPATH       = -I/Applications/GNURadio.app/Contents/MacOS/usr/mkspecs/macx-g++ -I. -I/Applications/GNURadio.app/Contents/MacOS/usr/include/QtCore -I/Applications/GNURadio.app/Contents/MacOS/usr/include/QtGui -I/Applications/GNURadio.app/Contents/MacOS/usr/include/QtOpenGL -I/Applications/GNURadio.app/Contents/MacOS/usr/include/QtSvg -I/Applications/GNURadio.app/Contents/MacOS/usr/include -I/System/Library/Frameworks/OpenGL.framework/Versions/A/Headers -I/System/Library/Frameworks/AGL.framework/Headers -Imoc
+ LINK          = @echo linking $@ && g++
+-LFLAGS        = -headerpad_max_install_names -single_module -dynamiclib -compatibility_version	6.1 -current_version	6.1.3 -install_name	libqwt.6.dylib
++LFLAGS        = -headerpad_max_install_names -single_module -dynamiclib -compatibility_version	6.1 -current_version	6.1.3 -install_name	/Applications/GNURadio.app/Contents/MacOS/usr/lib/libqwt.6.dylib
+ LIBS          = $(SUBLIBS)  -L/Applications/GNURadio.app/Contents/MacOS/usr/lib -lQtSvg -L/Applications/GNURadio.app/Contents/MacOS/usr/lib -lQtOpenGL -lQtGui -lQtCore -framework OpenGL -framework AGL 
+ AR            = ar cq
+ RANLIB        = ranlib -s

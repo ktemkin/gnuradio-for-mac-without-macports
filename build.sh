@@ -286,6 +286,11 @@ function build_and_install_autotools() {
   local URL=${2}
   local T=${3}
   local BRANCH=${4}
+  local CONFIGURE_CMD=${5}
+  
+  if [ "" = "${CONFIGURE_CMD}" ]; then
+    CONFIGURE_CMD="./configure --prefix=${INSTALL_DIR}/usr"
+  fi
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -311,13 +316,50 @@ function build_and_install_autotools() {
         && libtoolize -if \
         || E "libtoolize failed for ${P}"
     fi
-  
+
     I "Configuring and building in ${T}"
     cd ${TMP_DIR}/${T} \
-      && ./configure --prefix=${INSTALL_DIR}/usr ${EXTRA_OPTS} \
+      && I "${CONFIGURE_CMD} ${EXTRA_OPTS}" \
+      && ${CONFIGURE_CMD} ${EXTRA_OPTS} \
       && ${MAKE} \
       && ${MAKE} install \
       || E "failed to configure, make, and install ${P}"
+  
+    I "finished building and installing ${P}"
+    
+    touch ${TMP_DIR}/.${P}.done
+    
+  fi
+  
+  unset SKIP_AUTORECONF
+  unset SKIP_LIBTOOLIZE
+}
+
+function build_and_install_qmake() {
+
+  local P=${1}
+  local URL=${2}
+  local T=${3}
+  local BRANCH=${4}
+  
+  if [ "" = "${T}" ]; then
+    T=${P}
+  fi
+
+  if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"
+  else 
+  
+    fetch ${P} ${URL} ${T} ${BRANCH}
+    unpack ${P} ${URL} ${T} ${BRANCH}
+  
+    I "Configuring and building in ${T}"
+    cd ${TMP_DIR}/${T} \
+      && I "qmake ${EXTRA_OPTS}" \
+      && qmake ${EXTRA_OPTS} \
+      && ${MAKE} \
+      && ${MAKE} install \
+      || E "failed to make and install ${P}"
   
     I "finished building and installing ${P}"
     
@@ -397,8 +439,8 @@ prefix_path_if_not_contained ${INSTALL_DIR}/usr/bin
 CPPFLAGS="-I${INSTALL_DIR}/usr/include -I/opt/X11/include"
 #CPPFLAGS="${CPPFLAGS} -I${INSTALL_DIR}/usr/include/gdk-pixbuf-2.0 -I${INSTALL_DIR}/usr/include/cairo -I${INSTALL_DIR}/usr/include/pango-1.0 -I${INSTALL_DIR}/usr/include/atk-1.0"
 export CPPFLAGS
-export CC=clang
-export CXX="clang++ -stdlib=libc++"
+export CC="clang -mmacosx-version-min=10.7"
+export CXX="clang++ -mmacosx-version-min=10.7 -stdlib=libc++"
 export LDFLAGS="-Wl,-undefined,error -L${INSTALL_DIR}/usr/lib -L/opt/X11/lib -Wl,-rpath,${INSTALL_DIR}/usr/lib -Wl,-rpath,/opt/X11/lib"
 export PKG_CONFIG_PATH="${INSTALL_DIR}/usr/lib/pkgconfig:/opt/X11/lib/pkgconfig"
 
@@ -691,8 +733,7 @@ build_and_install_setup_py \
     URL='http://apache.mirror.gtcomm.net/thrift/0.10.0/thrift-0.10.0.tar.gz'
 
   PY_PREFIX="${INSTALL_DIR}/usr" \
-  CXX="clang++ -stdlib=libc++" \
-  CXXFLAGS="${CPPFLAGS} -std=c++11" \
+  CXXFLAGS="${CPPFLAGS}" \
   EXTRA_OPTS="--without-perl --without-php" \
   build_and_install_autotools \
     ${P} \
@@ -941,31 +982,197 @@ build_and_install_autotools \
     ${P} \
     ${URL}
 
-##
-## Install cblas
-## 
-## XXX: @CF: requires either f2c or gfortran, both of which I don't care for right now
-#  P=cblas
-#  URL='http://www.netlib.org/blas/blast-forum/cblas.tgz'
-#  T=CBLAS
 #
-#  EXTRA_OPTS="" \
-#  build_and_install_cmake \
-#    ${P} \
-#    ${URL} \
-#    ${T}
+# Install f2c
+#
 
-##
-## Install gnu scientific library
-## 
-## XXX: @CF: required by gr-wavelet, depends on cblas
+P=f2c
+URL=https://github.com/barak/f2c.git
+T=${P}
+BRANCH=master
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T}/src \
+  && rm -f Makefile \
+  && cp makefile.u Makefile \
+  && I building f2c \
+  && ${MAKE} \
+  && I installing f2c \
+  && cp f2c ${INSTALL_DIR}/usr/bin \
+  && cp f2c.h ${INSTALL_DIR}/usr/include \
+  && cp ${BUILD_DIR}/scripts/gfortran-wrapper.sh ${INSTALL_DIR}/usr/bin/gfortran \
+  && chmod +x ${INSTALL_DIR}/usr/bin/gfortran \
+    || E "failed to build and install f2c"  
+
+  touch ${TMP_DIR}/.${P}.done
+fi
+
 #
-#  P=gsl-2.3
-#  URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
+# Install libf2c
 #
-#  build_and_install_autotools \
-#    ${P} \
-#    ${URL}
+
+P=libf2c-20130927
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libf2c-20130927.zip
+T=${P}
+BRANCH=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  
+  rm -Rf ${TMP_DIR}/${T} \
+  && mkdir -p ${TMP_DIR}/${T} \
+  && cd ${TMP_DIR}/${T} \
+  && unzip ${TMP_DIR}/${P}.zip \
+  || E "failed to extract ${P}.zip"
+  
+  cd ${TMP_DIR}/${T}/ \
+  && rm -f Makefile \
+  && cp makefile.u Makefile \
+  && I building ${P} \
+  && ${MAKE} \
+  && I installing ${P} \
+  && cp libf2c.a ${INSTALL_DIR}/usr/lib \
+  || E "failed to build and install libf2c"
+
+#  && mkdir -p foo \
+#  && cd foo \
+#  && ar x ../libf2c.a \
+#  && rm main.o getarg_.o iargc_.o \
+#  && \
+#  ${CC} \
+#    ${LDFLAGS} \
+#    -dynamiclib \
+#    -install_name ${INSTALL_DIR}/usr/lib/libf2c.dylib \
+#    -o ../libf2c.dylib \
+#    *.o \
+#  && cd .. \
+
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install blas
+#
+
+P=blas-3.7.0
+URL=http://www.netlib.org/blas/blas-3.7.0.tgz
+T=BLAS-3.7.0
+BRANCH=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T}/ \
+  && I building ${P} \
+  && \
+    for i in *.f; do \
+      j=${i/.f/.c} \
+      && k=${j/.c/.o} \
+      && I "f2c ${i} > ${j}" \
+      && f2c ${i} > ${j} 2>/dev/null \
+      && I "[CC] ${k}" \
+      && \
+        ${CC} \
+          -I${INSTALL_DIR}/usr/include \
+          -c ${j} \
+          -o ${k} \
+      || E "build of ${P} failed"; \
+    done \
+  && I creating libblas.a \
+  && libtool -static -o libblas.a *.o \
+  && cp libblas.a ${INSTALL_DIR}/usr/lib/ \
+  || E "failed to build and install libblas"  
+
+#  && I creating libblas.dylib \
+#  && \
+#    ${CC} \
+#      ${LDFLAGS} \
+#      -dynamiclib \
+#      -install_name ${INSTALL_DIR}/usr/lib/libblas.dylib \
+#      -o libblas.dylib \
+#      *.o \
+#      -lf2c \
+  
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install cblas
+# 
+# XXX: @CF: requires either f2c or gfortran, both of which I don't care for right now
+  P=cblas
+  URL='http://www.netlib.org/blas/blast-forum/cblas.tgz'
+  T=CBLAS
+  BRANCH=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+
+  cd ${TMP_DIR}/${T}/src \
+  && cd ${TMP_DIR}/${T}/src \
+  && I compiling.. \
+  && ${MAKE} CFLAGS="${CPPFLAGS} -DADD_" all \
+  && I building static library \
+  && mkdir -p ${TMP_DIR}/${T}/libcblas \
+  && cd ${TMP_DIR}/${T}/libcblas \
+  && ar x ${TMP_DIR}/${T}/lib/cblas_LINUX.a \
+  && libtool -static -o ../libcblas.a *.o \
+  && cd ${TMP_DIR}/${T} \
+  && I installing ${P} to ${INSTALL_DIR}/usr/lib \
+  && cp ${TMP_DIR}/${T}/libcblas.* ${INSTALL_DIR}/usr/lib \
+  && cp ${TMP_DIR}/${T}/include/*.h ${INSTALL_DIR}/usr/include \
+  || E failed to make cblas
+
+#  && I building dynamic library \
+#  && cd ${TMP_DIR}/${T}/lib/ \
+#  && mkdir foo \
+#  && cd foo \
+#  && ar x ../*.a \
+#  && ${CC} \
+#    ${LDFLAGS} \
+#    -dynamiclib \
+#    -install_name ${INSTALL_DIR}/usr/lib/libcblas.dylib \
+#    -o ${TMP_DIR}/${T}/lib/libcblas.dylib \
+#    *.o \
+#    -lf2c \
+#    -lblas \
+
+
+#  && \
+#  for i in *.f; do \
+#    j=${i/.f/.c} \
+#    && I converting ${i} to ${j} using f2c \
+#    && f2c ${i} | tee ${j} \
+#    && mv ${i}{,_ignore} \
+#    || E f2c ${i} failed; \
+#  done \
+#  && I done converting .f to .c \
+
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install gnu scientific library
+# 
+# XXX: @CF: required by gr-wavelet, depends on cblas
+
+  P=gsl-2.3
+  URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
+
+  LDFLAGS="${LDFLAGS} -lcblas -lblas -lf2c" \
+  EXTRA_OPTS="" \
+  build_and_install_autotools \
+    ${P} \
+    ${URL}
 
 #
 # Install libusb
@@ -1069,9 +1276,6 @@ T=${P}
   fetch ${P} ${URL} ${T}
   unpack ${P} ${URL} ${T}
 
-  CXX="clang++ -stdlib=libc++" \
-  CXXFLAGS="${CPPFLAGS} -std=c++11" \
-
   _extra_cflags="$(pkg-config --cflags gtk+-2.0) $(pkg-config --cflags libgdk-x11) $(pkg-config --cflags x11)"
   _extra_libs="$(pkg-config --libs gtk+-2.0) $(pkg-config --libs gdk-x11-2.0) $(pkg-config --libs x11)"
 
@@ -1119,6 +1323,235 @@ fi
     ${BRANCH}
 
 #
+# Install QT
+#
+
+P=qt-everywhere-opensource-src-4.8.7
+URL=https://www.mirrorservice.org/sites/download.qt-project.org/official_releases/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz
+T=${P}
+BRANCH=""
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"
+else
+  INSTALL_QGL="yes"
+  rm -Rf ${INSTALL_DIR}/usr/lib/libQt*
+  rm -Rf ${INSTALL_DIR}/usr/include/Qt*
+
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  I configuring ${P} \
+  && cd ${TMP_DIR}/${T} \
+  && ./configure \
+    -prefix ${INSTALL_DIR}/usr \
+    -release \
+    -confirm-license \
+    -opensource \
+    -no-system-proxies \
+    -no-qt3support \
+    -no-xmlpatterns \
+    -no-audio-backend \
+    -no-phonon \
+    -no-phonon-backend \
+    -no-webkit \
+    -no-javascript-jit \
+    -no-script \
+    -no-scripttools \
+    -no-declarative \
+    -graphicssystem opengl \
+    -no-libmng \
+    -nomake demos \
+    -nomake examples \
+    -no-multimedia \
+    -no-audio-backend \
+    -no-phonon \
+    -no-phonon-backend \
+    -no-gif \
+    -no-webkit \
+    -no-libtiff \
+    -no-nis \
+    -no-openssl \
+    -rpath \
+    -no-dbus \
+    -no-cups \
+    -no-iconv \
+    -no-pch \
+    -arch x86_64 \
+    -opengl \
+  || E failed to configure ${P}
+  
+  # qmake obviously still has some Makefile generation issues..
+  for i in $(find * -name 'Makefile*'); do
+    j=${i}.tmp
+    cat ${i} \
+      | sed \
+        -e 's|-framework\ -framework||g' \
+        -e 's|-framework\ -prebind||g' \
+      > ${j}
+    mv ${j} ${i}    
+  done 
+  
+  I building ${P} \
+  && ${MAKE} \
+  || E failed to build ${P}
+  
+  I installing ${P} \
+  && ${MAKE} install \
+  || E failed to install ${P}
+
+#SKIP_AUTORECONF="yes" \
+#SKIP_LIBTOOLIZE="yes" \
+#EXTRA_OPTS="\
+#  -release \
+#  -confirm-license \
+#  -opensource \
+#  -no-system-proxies \
+#  -no-qt3support \
+#  -no-xmlpatterns \
+#  -no-audio-backend \
+#  -no-phonon \
+#  -no-phonon-backend \
+#  -no-webkit \
+#  -no-javascript-jit \
+#  -no-script \
+#  -no-scripttools \
+#  -no-declarative \
+#  -graphicssystem opengl \
+#  -no-libmng \
+#  -nomake demos \
+#  -nomake examples \
+#  -no-multimedia \
+#  -no-audio-backend \
+#  -no-phonon \
+#  -no-phonon-backend \
+#  -no-gif \
+#  -no-webkit \
+#  -no-libtiff \
+#  -no-nis \
+#  -no-openssl \
+#  -rpath \
+#  -no-dbus \
+#  -no-cups \
+#  -no-iconv \
+#  -no-pch \
+#  -arch x86_64 \
+#  -opengl \
+#" \
+#build_and_install_autotools \
+#  ${P} \
+#  ${URL} \
+#  ${T} \
+#  "${BRANCH}" \
+#  "./configure -prefix ${INSTALL_DIR}/usr "
+
+  if [ "yes" = "${INSTALL_QGL}" ]; then
+    cd ${TMP_DIR}/${T} \
+    && cd src/opengl \
+    && ${MAKE} \
+    && ${MAKE} install \
+    || E "failed to install qgl"
+  fi
+
+  touch ${TMP_DIR}/.${P}.done
+
+fi
+
+#
+# Install qwt
+#
+
+P=qwt-6.1.3
+URL=https://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
+T=${P}
+BRANCH=""
+
+SHOULD_DO_REBUILD=""
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+  SHOULD_DO_REBUILD="yes"
+fi
+
+QMAKE_CXX="${CXX}" \
+QMAKE_CXXFLAGS="${CPPFLAGS}" \
+QMAKE_LFLAGS="${LDFLAGS}" \
+EXTRA_OPTS="qwt.pro" \
+build_and_install_qmake \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
+
+if [ "yes" = "${SHOULD_DO_REBUILD}" ]; then
+  cd ${TMP_DIR}/${T} \
+  && I re-doing final link because qwt does not respect QMAKE_LFLAGS_SONAME \
+  && git apply ${BUILD_DIR}/patches/qwt-bullshit.diff \
+  && rm lib/* \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E failed to build and install ${P}
+fi
+
+#
+# Install sip
+#
+
+P=sip-4.19.1
+URL=https://svwh.dl.sourceforge.net/project/pyqt/sip/sip-4.19.1/sip-4.19.1.tar.gz
+T=${P}
+BRANCH=""
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+  I already installed ${P}
+else
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T} \
+  && ${PYTHON} configure.py \
+    --arch=x86_64 \
+    -b ${INSTALL_DIR}/usr/bin \
+    -d ${PYTHONPATH} \
+    -e ${INSTALL_DIR}/usr/include \
+    -v ${INSTALL_DIR}/usr/share/sip \
+    --stubsdir=${PYTHONPATH} \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E failed to build
+    
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
+# Install PyQt4
+#
+
+P=PyQt4_gpl_x11-4.12
+URL=https://superb-sea2.dl.sourceforge.net/project/pyqt/PyQt4/PyQt-4.12/PyQt4_gpl_x11-4.12.tar.gz
+T=${P}
+BRANCH=""
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+  I already installed ${P}
+else
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  cd ${TMP_DIR}/${T} \
+  && ${PYTHON} configure.py \
+    --confirm-license \
+    -b ${INSTALL_DIR}/usr/bin \
+    -d ${PYTHONPATH} \
+    -e ${INSTALL_DIR}/usr/include \
+    -v ${INSTALL_DIR}/usr/share/sip \
+  && ${MAKE} \
+  && ${MAKE} install \
+  || E failed to build
+    
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
 # Install gnuradio
 #
 
@@ -1136,7 +1569,6 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
   
   fetch volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
   unpack volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
-fi
 
 EXTRA_OPTS="\
   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
@@ -1160,6 +1592,8 @@ build_and_install_cmake \
 #  ln -sf ${i} ${INSTALL_DIR}/usr/lib; \
 #done
 
+  touch ${TMP_DIR}/.${P}.done
+fi
 
 
 #      -DSDL_INCLUDE_DIR=${INSTALL_DIR}/usr/include/SDL2 \
@@ -1167,21 +1601,95 @@ build_and_install_cmake \
 #
 
 #
+# Install osmo-sdr
+#
+
+P=osmo-sdr-0.1
+URL=http://cgit.osmocom.org/osmo-sdr/snapshot/osmo-sdr-0.1.tar.xz
+T=${P}/software/libosmosdr
+
+EXTRA_OPTS="" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${T}
+
+#
+# Install libhackrf
+#
+
+P=hackrf-2017.02.1
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
+T=${P}/host
+
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T}
+
+#
+# Install libbladerf
+#
+
+P=bladeRF-2016.06
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/bladerf-2016.06.tar.gz
+T=${P}/host
+
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T}
+
+#
+# Install libairspy
+#
+
+P=airspy
+URL=https://github.com/airspy/host.git
+T=${P}
+BRANCH=v1.0.9
+
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
+
+#
+# Install libmirisdr
+#
+
+P=libmirisdr
+URL=git://git.osmocom.org/libmirisdr
+T=${P}
+BRANCH=master
+
+EXTRA_OPTS="" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
+
+#
 # Install gr-osmosdr
 #
 
-#P=gr-osmosdr
-#URL=git://git.osmocom.org/gr-osmosdr
-#T=${P}
-#BRANCH=v0.1.4
-#
-#LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
-#EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}" \
-#build_and_install_cmake \
-#  ${P} \
-#  ${URL} \
-#  ${T} \
-#  ${BRANCH}
+P=gr-osmosdr
+URL=git://git.osmocom.org/gr-osmosdr
+T=${P}
+BRANCH=v0.1.4
+
+LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${T} \
+  ${BRANCH}
 
 ## XXX: @CF: requires librsvg which requires Rust... meh!
 ##
@@ -1218,6 +1726,61 @@ build_and_install_cmake \
 #    ${BRANCH}
 
 #
+# Install some useful scripts
+#
+
+P=scripts
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+  I already installed ${P}
+else
+
+  I creating grenv.sh script
+  cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
+    PYTHON=${PYTHON}
+    INSTALL_DIR=${INSTALL_DIR}
+    PYTHONPATH=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages:\${PYTHONPATH}
+    GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
+    GRPP=\${GRSHARE}/python/site-packages
+    PYTHONPATH=\${GRPP}:\${PYTHONPATH}
+    PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+EOF
+
+  if [ $? -ne 0 ]; then
+    E unable to create grenv.sh script
+  fi
+
+  cd ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
+  && \
+    for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
+      echo "DYLD_LIBRARY_PATH=\"\${GRPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+      echo "PYTHONPATH=\"\${GRPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+    done \
+  && echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh
+  
+  I installing find-broken-dylibs script \
+  && mkdir -p ${INSTALL_DIR}/usr/bin \
+  && cat ${BUILD_DIR}/scripts/find-broken-dylibs.sh \
+      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
+      > ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
+  && chmod +x ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
+  || E "failed to install 'find-broken-dylibs' script"
+
+  I installing run-grc script \
+  && mkdir -p ${INSTALL_DIR}/usr/bin \
+  && cat ${BUILD_DIR}/scripts/run-grc.sh \
+      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
+      > ${INSTALL_DIR}/usr/bin/run-grc \
+  && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
+  || E "failed to install 'run-grc' script"
+      
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
 # Create the GNURadio.app bundle
 # 
 
@@ -1226,7 +1789,7 @@ build_and_install_cmake \
   T=${P}
   BRANCH="master"
 
-if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+#if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
   fetch ${P} ${URL} ${T} ${BRANCH}
   unpack ${P} ${URL} ${T} ${BRANCH} 
@@ -1286,76 +1849,8 @@ if [ $? -ne 0 ]; then
 fi
 I created Info.plist
 
-
-# create run-grc script
-
-I creating run-grc script
-
-# XXX: @CF: FIXME: the paths below should be not be generated rather than static
-cat > ${INSTALL_DIR}/usr/bin/run-grc << 'EOF'
-#!/bin/sh
-
-PYTHON=python2.7
-INSTALL_DIR=/Applications/GNURadio.app/Contents/MacOS
-PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages:${PYTHONPATH}
-GRSHARE=${INSTALL_DIR}/usr/share/gnuradio
-GRPP=${GRSHARE}/python/site-packages
-PYTHONPATH=${GRPP}:${PYTHONPATH}
-PATH=${INSTALL_DIR}/usr/bin:/opt/X11/bin:${PATH}
-
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/analog:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/audio:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/blocks:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/channels:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/digital:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fcd:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fft:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/filter:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/gr:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/noaa:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/pager:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/trellis:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/uhd:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/vocoder:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/wxgui:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/zeromq:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/pmt:${DYLD_LIBRARY_PATH}"
-
-PYTHONPATH="${GRPP}/gnuradio/analog:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/audio:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/blocks:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/channels:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/digital:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/fcd:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/fft:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/filter:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/gr:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/noaa:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/pager:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/trellis:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/uhd:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/vocoder:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/wxgui:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/zeromq:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/pmt:${PYTHONPATH}"
-
-export PYTHONPATH
-export PATH
-export DYLD_LIBRARY_PATH
-
-gnuradio-companion &
-
-exit 0
-EOF
-if [ $? -eq 0 ]; then
-  chmod +x ${INSTALL_DIR}/usr/bin/run-grc
-  I created run-grc script
-else
-  E failed to create run-grc script
-fi
-
-  touch ${TMP_DIR}/.${P}.done 
-fi
+#  touch ${TMP_DIR}/.${P}.done 
+#fi
 
 #
 # Create .dmg file
@@ -1366,7 +1861,7 @@ URL=https://github.com/andreyvit/create-dmg.git
 T=${P}
 BRANCH=master
 
-if [ ! -f ${TMP_DIR}/${P}.done ]; then
+#if [ ! -f ${TMP_DIR}/${P}.done ]; then
 
   fetch ${P} ${URL} ${T} ${BRANCH}
   unpack ${P} ${URL} ${T} ${BRANCH}
@@ -1381,6 +1876,20 @@ if [ ! -f ${TMP_DIR}/${P}.done ]; then
   && rsync -ar ${APP_DIR} ${TMP_DIR}/${P}/temp \
   && cp ${BUILD_DIR}/LICENSE ${TMP_DIR}/${P}/temp \
   && I "executing create-dmg.. (this can take some time)" \
+  && I "create-dmg \
+    --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
+    --volicon ${BUILD_DIR}/gnuradio.icns \
+    --background ${BUILD_DIR}/gnuradio-logo-noicon.png \
+    --window-pos 200 120 \
+    --window-size 550 400 \
+    --icon LICENSE 137 190 \
+    --icon GNURadio.app 275 190 \
+    --hide-extension GNURadio.app \
+    --app-drop-link 412 190 \
+    --icon-size 100 \
+    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
+    ${TMP_DIR}/${P}/temp \
+  " \
   && ./create-dmg \
     --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
     --volicon ${BUILD_DIR}/gnuradio.icns \
@@ -1398,7 +1907,13 @@ if [ ! -f ${TMP_DIR}/${P}.done ]; then
 
 I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
-  touch ${TMP_DIR}/.${P}.done 
-fi
+#  touch ${TMP_DIR}/.${P}.done 
+#fi
+
+I ============================================================================
+I finding broken .dylibs and .so files in ${INSTALL_DIR}
+I ============================================================================
+${INSTALL_DIR}/usr/bin/find-broken-dylibs
+I ============================================================================
 
 I '!!!!!! DONE !!!!!!'
