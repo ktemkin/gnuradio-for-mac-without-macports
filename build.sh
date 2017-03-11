@@ -439,8 +439,8 @@ prefix_path_if_not_contained ${INSTALL_DIR}/usr/bin
 CPPFLAGS="-I${INSTALL_DIR}/usr/include -I/opt/X11/include"
 #CPPFLAGS="${CPPFLAGS} -I${INSTALL_DIR}/usr/include/gdk-pixbuf-2.0 -I${INSTALL_DIR}/usr/include/cairo -I${INSTALL_DIR}/usr/include/pango-1.0 -I${INSTALL_DIR}/usr/include/atk-1.0"
 export CPPFLAGS
-export CC=clang
-export CXX="clang++ -stdlib=libc++"
+export CC="clang -mmacosx-version-min=10.7"
+export CXX="clang++ -mmacosx-version-min=10.7 -stdlib=libc++"
 export LDFLAGS="-Wl,-undefined,error -L${INSTALL_DIR}/usr/lib -L/opt/X11/lib -Wl,-rpath,${INSTALL_DIR}/usr/lib -Wl,-rpath,/opt/X11/lib"
 export PKG_CONFIG_PATH="${INSTALL_DIR}/usr/lib/pkgconfig:/opt/X11/lib/pkgconfig"
 
@@ -733,8 +733,7 @@ build_and_install_setup_py \
     URL='http://apache.mirror.gtcomm.net/thrift/0.10.0/thrift-0.10.0.tar.gz'
 
   PY_PREFIX="${INSTALL_DIR}/usr" \
-  CXX="clang++ -stdlib=libc++" \
-  CXXFLAGS="${CPPFLAGS} -std=c++11" \
+  CXXFLAGS="${CPPFLAGS}" \
   EXTRA_OPTS="--without-perl --without-php" \
   build_and_install_autotools \
     ${P} \
@@ -1277,9 +1276,6 @@ T=${P}
   fetch ${P} ${URL} ${T}
   unpack ${P} ${URL} ${T}
 
-  CXX="clang++ -stdlib=libc++" \
-  CXXFLAGS="${CPPFLAGS} -std=c++11" \
-
   _extra_cflags="$(pkg-config --cflags gtk+-2.0) $(pkg-config --cflags libgdk-x11) $(pkg-config --cflags x11)"
   _extra_libs="$(pkg-config --libs gtk+-2.0) $(pkg-config --libs gdk-x11-2.0) $(pkg-config --libs x11)"
 
@@ -1335,64 +1331,128 @@ URL=https://www.mirrorservice.org/sites/download.qt-project.org/official_release
 T=${P}
 BRANCH=""
 
-if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"
+else
   INSTALL_QGL="yes"
-fi
+  rm -Rf ${INSTALL_DIR}/usr/lib/libQt*
+  rm -Rf ${INSTALL_DIR}/usr/include/Qt*
 
-SKIP_AUTORECONF="yes" \
-SKIP_LIBTOOLIZE="yes" \
-CXX="${CXX} -mmacosx-version-min=10.7 ${CPPFLAGS}" \
-CC="${CC} -mmacosx-version-min=10.7 ${CPPFLAGS}" \
-LD="${CXX} -mmacosx-version-min=10.7 ${LDFLAGS/-Wl,-undefined,error/} -Wl,-framework,CoreText -Wl,-framework,CoreGraphics -Wl,-framework,OpenGL" \
-EXTRA_OPTS="\
-  -qpa cocoa \
-  -prefix ${INSTALL_DIR}/usr \
-  -release \
-  -confirm-license \
-  -opensource \
-  -no-system-proxies \
-  -no-qt3support \
-  -no-xmlpatterns \
-  -no-audio-backend \
-  -no-phonon \
-  -no-phonon-backend \
-  -no-webkit \
-  -no-javascript-jit \
-  -no-script \
-  -no-scripttools \
-  -no-declarative \
-  -graphicssystem opengl \
-  -no-libmng \
-  -nomake demos \
-  -nomake examples \
-  -no-multimedia \
-  -no-audio-backend \
-  -no-phonon \
-  -no-phonon-backend \
-  -no-gif \
-  -no-webkit \
-  -no-libtiff \
-  -no-nis \
-  -no-openssl \
-  -rpath \
-  -no-dbus \
-  -no-cups \
-  -cocoa \
-  -no-framework \
-  -arch x86_64 \
-" \
-build_and_install_autotools \
-  ${P} \
-  ${URL} \
-  ${T} \
-  "${BRANCH}" \
-  "./configure -prefix ${INSTALL_DIR}/usr "
+  fetch ${P} ${URL} ${T} ${BRANCH}
+  unpack ${P} ${URL} ${T} ${BRANCH}
+  
+  I configuring ${P} \
+  && cd ${TMP_DIR}/${T} \
+  && ./configure \
+    -prefix ${INSTALL_DIR}/usr \
+    -release \
+    -confirm-license \
+    -opensource \
+    -no-system-proxies \
+    -no-qt3support \
+    -no-xmlpatterns \
+    -no-audio-backend \
+    -no-phonon \
+    -no-phonon-backend \
+    -no-webkit \
+    -no-javascript-jit \
+    -no-script \
+    -no-scripttools \
+    -no-declarative \
+    -graphicssystem opengl \
+    -no-libmng \
+    -nomake demos \
+    -nomake examples \
+    -no-multimedia \
+    -no-audio-backend \
+    -no-phonon \
+    -no-phonon-backend \
+    -no-gif \
+    -no-webkit \
+    -no-libtiff \
+    -no-nis \
+    -no-openssl \
+    -rpath \
+    -no-dbus \
+    -no-cups \
+    -no-iconv \
+    -no-pch \
+    -arch x86_64 \
+    -opengl \
+  || E failed to configure ${P}
+  
+  # qmake obviously still has some Makefile generation issues..
+  for i in $(find * -name 'Makefile*'); do
+    j=${i}.tmp
+    cat ${i} \
+      | sed \
+        -e 's|-framework\ -framework||g' \
+        -e 's|-framework\ -prebind||g' \
+      > ${j}
+    mv ${j} ${i}    
+  done 
+  
+  I building ${P} \
+  && ${MAKE} \
+  || E failed to build ${P}
+  
+  I installing ${P} \
+  && ${MAKE} install \
+  || E failed to install ${P}
+
+#SKIP_AUTORECONF="yes" \
+#SKIP_LIBTOOLIZE="yes" \
+#EXTRA_OPTS="\
+#  -release \
+#  -confirm-license \
+#  -opensource \
+#  -no-system-proxies \
+#  -no-qt3support \
+#  -no-xmlpatterns \
+#  -no-audio-backend \
+#  -no-phonon \
+#  -no-phonon-backend \
+#  -no-webkit \
+#  -no-javascript-jit \
+#  -no-script \
+#  -no-scripttools \
+#  -no-declarative \
+#  -graphicssystem opengl \
+#  -no-libmng \
+#  -nomake demos \
+#  -nomake examples \
+#  -no-multimedia \
+#  -no-audio-backend \
+#  -no-phonon \
+#  -no-phonon-backend \
+#  -no-gif \
+#  -no-webkit \
+#  -no-libtiff \
+#  -no-nis \
+#  -no-openssl \
+#  -rpath \
+#  -no-dbus \
+#  -no-cups \
+#  -no-iconv \
+#  -no-pch \
+#  -arch x86_64 \
+#  -opengl \
+#" \
+#build_and_install_autotools \
+#  ${P} \
+#  ${URL} \
+#  ${T} \
+#  "${BRANCH}" \
+#  "./configure -prefix ${INSTALL_DIR}/usr "
 
 if [ "yes" = "${INSTALL_QGL}" ]; then
-  cd ${TMP_DIR}/${T}/src/opengl \
+  cd ${TMP_DIR}/${T} \
+  && cd src/opengl \
   && ${MAKE} \
   && ${MAKE} install \
   || E "failed to install qgl"
+fi
+
 fi
 
 #
@@ -1664,6 +1724,61 @@ build_and_install_cmake \
 #    ${BRANCH}
 
 #
+# Install some useful scripts
+#
+
+P=scripts
+
+if [ -f ${TMP_DIR}/.${P}.done ]; then
+  I already installed ${P}
+else
+
+  I creating grenv.sh script
+  cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
+    PYTHON=${PYTHON}
+    INSTALL_DIR=${INSTALL_DIR}
+    PYTHONPATH=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages:\${PYTHONPATH}
+    GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
+    GRPP=\${GRSHARE}/python/site-packages
+    PYTHONPATH=\${GRPP}:\${PYTHONPATH}
+    PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+EOF
+
+  if [ $? -ne 0 ]; then
+    E unable to create grenv.sh script
+  fi
+
+  cd ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
+  && \
+    for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
+      echo "DYLD_LIBRARY_PATH=\"\${GRPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+      echo "PYTHONPATH=\"\${GRPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+    done \
+  && echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh
+  
+  I installing find-broken-dylibs script \
+  && mkdir -p ${INSTALL_DIR}/usr/bin \
+  && cat ${BUILD_DIR}/scripts/find-broken-dylibs.sh \
+      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
+      > ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
+  && chmod +x ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
+  || E "failed to install 'find-broken-dylibs' script"
+
+  I installing run-grc script \
+  && mkdir -p ${INSTALL_DIR}/usr/bin \
+  && cat ${BUILD_DIR}/scripts/run-grc.sh \
+      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
+      > ${INSTALL_DIR}/usr/bin/run-grc \
+  && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
+  || E "failed to install 'run-grc' script"
+      
+  touch ${TMP_DIR}/.${P}.done
+fi
+
+#
 # Create the GNURadio.app bundle
 # 
 
@@ -1732,84 +1847,6 @@ if [ $? -ne 0 ]; then
 fi
 I created Info.plist
 
-
-# create run-grc script
-
-I creating run-grc script
-
-# XXX: @CF: FIXME: the paths below should be not be generated rather than static
-cat > ${INSTALL_DIR}/usr/bin/run-grc << 'EOF'
-#!/bin/sh
-
-PYTHON=python2.7
-INSTALL_DIR=/Applications/GNURadio.app/Contents/MacOS
-PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages:${PYTHONPATH}
-GRSHARE=${INSTALL_DIR}/usr/share/gnuradio
-GRPP=${GRSHARE}/python/site-packages
-PYTHONPATH=${GRPP}:${PYTHONPATH}
-PATH=${INSTALL_DIR}/usr/bin:/opt/X11/bin:${PATH}
-
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/analog:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/atsc:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/audio:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/blocks:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/channels:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/digital:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/dtv:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fcd:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fec:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/fft:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/filter:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/gr:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/noaa:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/pager:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/qtgui:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/trellis:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/uhd:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/vocoder:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/wavelet:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/wxgui:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/gnuradio/zeromq:${DYLD_LIBRARY_PATH}"
-DYLD_LIBRARY_PATH="${GRPP}/pmt:${DYLD_LIBRARY_PATH}"
-
-PYTHONPATH="${GRPP}/gnuradio/analog:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/atsc:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/audio:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/blocks:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/channels:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/digital:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/dtv:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/fcd:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/fec:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/fft:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/filter:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/gr:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/noaa:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/pager:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/qtgui:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/trellis:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/uhd:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/vocoder:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/wavelet:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/wxgui:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/gnuradio/zeromq:${PYTHONPATH}"
-PYTHONPATH="${GRPP}/pmt:${PYTHONPATH}"
-
-export PYTHONPATH
-export PATH
-export DYLD_LIBRARY_PATH
-
-gnuradio-companion &
-
-exit 0
-EOF
-if [ $? -eq 0 ]; then
-  chmod +x ${INSTALL_DIR}/usr/bin/run-grc
-  I created run-grc script
-else
-  E failed to create run-grc script
-fi
-
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
 
@@ -1870,5 +1907,11 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
+
+I ============================================================================
+I finding broken .dylibs and .so files in ${INSTALL_DIR}
+I ============================================================================
+${INSTALL_DIR}/usr/bin/find-broken-dylibs
+I ============================================================================
 
 I '!!!!!! DONE !!!!!!'
