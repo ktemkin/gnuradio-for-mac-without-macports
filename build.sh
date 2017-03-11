@@ -1445,13 +1445,15 @@ else
 #  "${BRANCH}" \
 #  "./configure -prefix ${INSTALL_DIR}/usr "
 
-if [ "yes" = "${INSTALL_QGL}" ]; then
-  cd ${TMP_DIR}/${T} \
-  && cd src/opengl \
-  && ${MAKE} \
-  && ${MAKE} install \
-  || E "failed to install qgl"
-fi
+  if [ "yes" = "${INSTALL_QGL}" ]; then
+    cd ${TMP_DIR}/${T} \
+    && cd src/opengl \
+    && ${MAKE} \
+    && ${MAKE} install \
+    || E "failed to install qgl"
+  fi
+
+  touch ${TMP_DIR}/.${P}.done
 
 fi
 

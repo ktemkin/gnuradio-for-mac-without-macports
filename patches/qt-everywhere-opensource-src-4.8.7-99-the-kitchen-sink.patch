@@ -2115,3 +2115,22 @@ index 84dc764..2ed3064 100644
  
  QMAKE_LFLAGS_VERSION    = -current_version$${LITERAL_WHITESPACE}
  QMAKE_LFLAGS_COMPAT_VERSION = -compatibility_version$${LITERAL_WHITESPACE}
+diff --git a/src/corelib/io/qsettings_mac.cpp b/src/corelib/io/qsettings_mac.cpp
+index 3504907..5fc683d 100644
+--- a/src/corelib/io/qsettings_mac.cpp
++++ b/src/corelib/io/qsettings_mac.cpp
+@@ -39,6 +39,8 @@
+ **
+ ****************************************************************************/
+ 
++#if 0
++
+ #include "qsettings.h"
+ #include "qsettings_p.h"
+ #include "qdatetime.h"
+@@ -734,3 +736,5 @@ bool QConfFileSettingsPrivate::writePlistFile(const QString &fileName,
+ }
+ 
+ QT_END_NAMESPACE
++
++#endif
