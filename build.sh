@@ -1538,11 +1538,14 @@ else
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   cd ${TMP_DIR}/${T} \
-  && ${PYTHON} configure.py \
+  && \
+  CFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
+  CXXFLAGS="${CPPFLAGS}  $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
+  LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL)" \
+  ${PYTHON} configure.py \
     --confirm-license \
     -b ${INSTALL_DIR}/usr/bin \
     -d ${PYTHONPATH} \
-    -e ${INSTALL_DIR}/usr/include \
     -v ${INSTALL_DIR}/usr/share/sip \
   && ${MAKE} \
   && ${MAKE} install \
