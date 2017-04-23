@@ -1538,11 +1538,14 @@ else
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   cd ${TMP_DIR}/${T} \
-  && ${PYTHON} configure.py \
+  && \
+  CFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
+  CXXFLAGS="${CPPFLAGS}  $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
+  LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL)" \
+  ${PYTHON} configure.py \
     --confirm-license \
     -b ${INSTALL_DIR}/usr/bin \
     -d ${PYTHONPATH} \
-    -e ${INSTALL_DIR}/usr/include \
     -v ${INSTALL_DIR}/usr/share/sip \
   && ${MAKE} \
   && ${MAKE} install \
@@ -1622,7 +1625,7 @@ P=hackrf-2017.02.1
 URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
 T=${P}/host
 
-EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
 build_and_install_cmake \
   ${P} \
   ${URL} \
@@ -1636,7 +1639,7 @@ P=bladeRF-2016.06
 URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/bladerf-2016.06.tar.gz
 T=${P}/host
 
-EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
 build_and_install_cmake \
   ${P} \
   ${URL} \
@@ -1684,7 +1687,7 @@ T=${P}
 BRANCH=v0.1.4
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
-EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
 build_and_install_cmake \
   ${P} \
   ${URL} \
@@ -1739,7 +1742,8 @@ else
   cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
     PYTHON=${PYTHON}
     INSTALL_DIR=${INSTALL_DIR}
-    PYTHONPATH=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages:\${PYTHONPATH}
+    ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
+    PYTHONPATH=\${ULPP}:\${PYTHONPATH}
     GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
     GRPP=\${GRSHARE}/python/site-packages
     PYTHONPATH=\${GRPP}:\${PYTHONPATH}
@@ -1750,6 +1754,17 @@ EOF
     E unable to create grenv.sh script
   fi
 
+  cd ${INSTALL_DIR}/usr/lib/${PTYHON}/site-packages \
+  && \
+    for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
+      echo "DYLD_LIBRARY_PATH=\"\${ULPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+      echo "PYTHONPATH=\"\${ULPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+    done \
+  && echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh
+  
   cd ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
   && \
     for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
