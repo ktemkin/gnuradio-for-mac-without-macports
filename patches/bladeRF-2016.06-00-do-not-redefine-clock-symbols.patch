@@ -1,0 +1,20 @@
+commit 5e0913f978166ec00a9fce77dbfdadb63b8d6bab
+Author: John Doe <jdoe@Johns-Mac.local>
+Date:   Wed Feb 22 21:46:44 2017 -0500
+
+    do not redefine clock related symbols on mac
+
+diff --git a/common/include/osx/clock_gettime.h b/common/include/osx/clock_gettime.h
+index c8d0c76..cbebc67 100644
+--- a/common/include/osx/clock_gettime.h
++++ b/common/include/osx/clock_gettime.h
+@@ -35,9 +35,6 @@ extern "C" {
+ #   error "This file is intended for use with OSX systems only."
+ #endif
+ 
+-typedef int clockid_t;
+-#define CLOCK_REALTIME 0
+-
+ int clock_gettime(clockid_t clk_id, struct timespec *tp);
+ 
+ #ifdef __cplusplus

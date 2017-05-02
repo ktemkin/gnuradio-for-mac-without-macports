@@ -1,0 +1,15 @@
+diff --git a/configure.py b/configure.py
+index 6118d39..d595e35 100644
+--- a/configure.py
++++ b/configure.py
+@@ -1946,8 +1946,8 @@ def get_qt_configuration():
+         else:
+             exe_file = os.path.join("release", app + ".exe")
+             make_target = " release"
+-    elif sys.platform == "darwin":
+-        exe_file = os.path.join(app + ".app", "Contents", "MacOS", app)
++#    elif sys.platform == "darwin":
++#        exe_file = os.path.join(app + ".app", "Contents", "MacOS", app)
+     else:
+         exe_file = os.path.join(".", app)
+ 

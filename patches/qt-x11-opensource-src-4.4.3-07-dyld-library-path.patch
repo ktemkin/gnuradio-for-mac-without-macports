@@ -1,0 +1,49 @@
+diff --git a/src/corelib/io/qprocess_unix.cpp b/src/corelib/io/qprocess_unix.cpp
+index 39245ac..9dcd819 100644
+--- a/src/corelib/io/qprocess_unix.cpp
++++ b/src/corelib/io/qprocess_unix.cpp
+@@ -81,7 +81,7 @@ QT_END_NAMESPACE
+ #include "qprocess.h"
+ #include "qprocess_p.h"
+ 
+-#ifdef Q_OS_MAC
++#ifdef Q_WS_MAC
+ #include <private/qcore_mac_p.h>
+ #endif
+ 
+@@ -571,7 +571,7 @@ inline pid_t qt_fork()
+ #endif
+ }
+ 
+-#ifdef Q_OS_MAC
++#ifdef Q_WS_MAC
+ Q_GLOBAL_STATIC(QMutex, cfbundleMutex);
+ #endif
+ 
+@@ -619,7 +619,7 @@ void QProcessPrivate::startProcess()
+ 
+     // Encode the program name.
+     QByteArray encodedProgramName = QFile::encodeName(program);
+-#ifdef Q_OS_MAC
++#ifdef Q_WS_MAC
+     // allow invoking of .app bundles on the Mac.
+     QFileInfo fileInfo(QString::fromUtf8(encodedProgramName.constData()));
+     if (encodedProgramName.endsWith(".app") && fileInfo.isDir()) {
+@@ -647,7 +647,7 @@ void QProcessPrivate::startProcess()
+     // Add every argument to the list
+     for (int i = 0; i < arguments.count(); ++i) {
+         QString arg = arguments.at(i);
+-#ifdef Q_OS_MAC
++#ifdef Q_WS_MAC
+         // Mac OS X uses UTF8 for exec, regardless of the system locale.
+         argv[i + 1] = ::strdup(arg.toUtf8().constData());
+ #else
+@@ -1279,7 +1279,7 @@ bool QProcessPrivate::startDetached(const QString &program, const QStringList &a
+ 
+             char **argv = new char *[arguments.size() + 2];
+             for (int i = 0; i < arguments.size(); ++i) {
+-#ifdef Q_OS_MAC
++#ifdef Q_WS_MAC
+                 argv[i + 1] = ::strdup(arguments.at(i).toUtf8().constData());
+ #else
+                 argv[i + 1] = ::strdup(arguments.at(i).toLocal8Bit().constData());
