@@ -748,7 +748,7 @@ build_and_install_setup_py \
 
   build_and_install_autotools \
     ${P} \
-    ${URL}x
+    ${URL}
 
 #
 # Install Cheetah
