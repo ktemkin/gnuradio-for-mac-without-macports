@@ -474,6 +474,7 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
 #
 
 [[ -d /Library/Frameworks/Python.framework/Versions/2.7 ]] \
+  || [[ -d /System/Library/Frameworks/Python.framework/Versions/2.7 ]] \
   || E "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
 
 
