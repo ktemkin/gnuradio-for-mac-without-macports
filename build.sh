@@ -51,7 +51,7 @@ XQUARTZ_APP_DIR=/Applications/Utilities/XQuartz.app
 
 BUILD_DIR="$(top_srcdir)"
 TMP_DIR=${BUILD_DIR}/tmp
-APP_DIR=/Applications/GNURadio.app
+APP_DIR="${APP_DIR:-"/Applications/GNURadio.app"}"
 CONTENTS_DIR=${APP_DIR}/Contents
 RESOURCES_DIR=${CONTENTS_DIR}/Resources
 INSTALL_DIR=${CONTENTS_DIR}/MacOS
