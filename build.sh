@@ -792,7 +792,7 @@ cd
 # 
 
     P=libpng-1.6.28
-    URL='ftp://ftp.simplesystems.org/pub/libpng/png/src/libpng16/libpng-1.6.28.tar.xz'
+    URL='https://ftp-osl.osuosl.org/pub/libpng/src/archive/xz/libpng16/libpng-1.6.28.tar.xz'
 
   build_and_install_autotools \
     ${P} \
