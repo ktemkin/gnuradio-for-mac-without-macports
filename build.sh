@@ -1269,6 +1269,7 @@ T=${P}
   P=wxPython-src-3.0.2.0
   URL=https://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
   T=${P}
+  BRANCH=""
 
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I "already installed ${P}"    
