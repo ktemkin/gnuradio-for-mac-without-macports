@@ -1476,12 +1476,6 @@ URL=https://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
 T=${P}
 BRANCH=""
 
-SHOULD_DO_REBUILD=""
-
-if [ ! -f ${TMP_DIR}/.${P}.done ]; then
-  SHOULD_DO_REBUILD="yes"
-fi
-
 QMAKE_CXX="${CXX}" \
 QMAKE_CXXFLAGS="${CPPFLAGS}" \
 QMAKE_LFLAGS="${LDFLAGS}" \
@@ -1491,16 +1485,6 @@ build_and_install_qmake \
   ${URL} \
   ${T} \
   ${BRANCH}
-
-if [ "yes" = "${SHOULD_DO_REBUILD}" ]; then
-  cd ${TMP_DIR}/${T} \
-  && I re-doing final link because qwt does not respect QMAKE_LFLAGS_SONAME \
-  && git apply ${BUILD_DIR}/patches/qwt-bullshit.diff \
-  && rm lib/* \
-  && ${MAKE} \
-  && ${MAKE} install \
-  || E failed to build and install ${P}
-fi
 
 #
 # Install sip
