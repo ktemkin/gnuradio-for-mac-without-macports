@@ -204,10 +204,18 @@ function unpack() {
     fi
     
     for PP in $PATCHES; do
-      I "applying patch ${PP}"
-      cd ${TMP_DIR}/${T} \
-        && git apply ${PP} \
-        || E "git apply ${PP} failed"
+      if [ "${PP%".sh.patch"}" != "${PP}" ]; then
+        # This ends with .sh.patch, so source it:
+        I "applying script ${PP}"
+        cd ${TMP_DIR}/${T} \
+          && . ${PP} \
+          || E "sh ${PP} failed"
+      else
+        I "applying patch ${PP}"
+        cd ${TMP_DIR}/${T} \
+          && git apply ${PP} \
+          || E "git apply ${PP} failed"
+      fi
     done
   fi
 }
