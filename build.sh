@@ -1295,7 +1295,7 @@ T=${P}
       CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
       LDFLAGS="${LDFLAGS} ${_extra_libs}" \
       ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 install \
-        --prefix=/Applications/GNURadio.app/Contents/MacOS/usr \
+        --prefix="${INSTALL_DIR}/usr" \
     && D "copying wx.pth to ${PYTHONPATH}/wx.pth" \
     && cp \
        ${TMP_DIR}/${T}/wxPython/src/wx.pth \
