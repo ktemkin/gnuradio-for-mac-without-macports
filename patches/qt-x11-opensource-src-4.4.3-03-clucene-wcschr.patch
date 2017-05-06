@@ -1,0 +1,13 @@
+diff --git a/src/3rdparty/clucene/src/CLucene/config/repl_tchar.h b/src/3rdparty/clucene/src/CLucene/config/repl_tchar.h
+index d562cc8..51bc443 100644
+--- a/src/3rdparty/clucene/src/CLucene/config/repl_tchar.h
++++ b/src/3rdparty/clucene/src/CLucene/config/repl_tchar.h
+@@ -33,7 +33,7 @@
+     #define _tcscpy wcscpy //copy a string to another string
+     #define _tcsncpy wcsncpy //copy a specified amount of one string to another string.
+     #define _tcscat wcscat //copy a string onto the end of the other string
+-    #define _tcschr wcschr //find location of one character
++    #define _tcschr std::wcschr //find location of one character
+     #define _tcsstr wcsstr //find location of a string
+     #define _tcslen wcslen //get length of a string
+     #define _tcscmp wcscmp //case sensitive compare two strings

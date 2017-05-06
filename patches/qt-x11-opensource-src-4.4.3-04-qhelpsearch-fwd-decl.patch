@@ -1,0 +1,15 @@
+diff --git a/tools/assistant/lib/qhelpsearchindexreader_default_p.h b/tools/assistant/lib/qhelpsearchindexreader_default_p.h
+index 092ac3a..5a652ec 100644
+--- a/tools/assistant/lib/qhelpsearchindexreader_default_p.h
++++ b/tools/assistant/lib/qhelpsearchindexreader_default_p.h
+@@ -66,8 +66,10 @@
+ 
+ QT_BEGIN_NAMESPACE
+ 
++namespace QtHelpInternal {
+ struct Entry;
+ struct PosEntry;
++}
+ 
+ namespace qt {
+     namespace fulltextsearch {

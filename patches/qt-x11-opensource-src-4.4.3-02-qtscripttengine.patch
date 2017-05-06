@@ -1,0 +1,13 @@
+diff --git a/src/script/qscriptengine.h b/src/script/qscriptengine.h
+index 59ae5b1..c44c65d 100644
+--- a/src/script/qscriptengine.h
++++ b/src/script/qscriptengine.h
+@@ -70,7 +70,7 @@ class QScriptEnginePrivate;
+ template <class T>
+ inline QScriptValue qscriptQMetaObjectConstructor(QScriptContext *, QScriptEngine *, T *)
+ {
+-    return 0;
++    return QScriptValue();
+ }
+ 
+ #endif // QT_NO_QOBJECT

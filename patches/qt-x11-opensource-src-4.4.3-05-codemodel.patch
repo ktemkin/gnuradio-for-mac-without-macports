@@ -1,0 +1,13 @@
+diff --git a/tools/porting/src/codemodel.h b/tools/porting/src/codemodel.h
+index 6ff22c9..34e8955 100644
+--- a/tools/porting/src/codemodel.h
++++ b/tools/porting/src/codemodel.h
+@@ -92,7 +92,7 @@ class Collection: public QMultiHash<QByteArray, CollectedType *>
+ {
+ public:
+      void add(CollectedType *collectedItem)
+-    { insert(collectedItem->name(), collectedItem); }
++    { this->insert(collectedItem->name(), collectedItem); }
+ };
+ 
+ typedef Collection<Scope> ScopeCollection;
