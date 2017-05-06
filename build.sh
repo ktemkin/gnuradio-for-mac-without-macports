@@ -1513,7 +1513,7 @@ else
   cd ${TMP_DIR}/${T} \
   && \
   CFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
-  CXXFLAGS="${CPPFLAGS}  $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
+  CXXFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
   LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL)" \
   ${PYTHON} configure.py \
     --confirm-license \
