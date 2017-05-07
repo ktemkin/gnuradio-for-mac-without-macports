@@ -1213,7 +1213,7 @@ fi
   T=${P}
   BRANCH=release_003_010_001_001
 
-  EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}/host -DENABLE_E300=OFF" \
+  EXTRA_OPTS="-DENABLE_E300=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}/host" \
   build_and_install_cmake \
     ${P} \
     ${URL} \
