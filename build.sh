@@ -1707,36 +1707,33 @@ build_and_install_cmake \
 
 P=scripts
 
-if [ -f ${TMP_DIR}/.${P}.done ]; then
-  I already installed ${P}
-else
+# always recreate scripts
+if [ 1 -eq 1 ]; then
 
   I creating grenv.sh script
   cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
-    PYTHON=${PYTHON}
-    INSTALL_DIR=${INSTALL_DIR}
-    ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
-    PYTHONPATH=\${ULPP}:\${PYTHONPATH}
-    GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
-    GRPP=\${GRSHARE}/python/site-packages
-    PYTHONPATH=\${GRPP}:\${PYTHONPATH}
-    PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+PYTHON=${PYTHON}
+INSTALL_DIR=${INSTALL_DIR}
+ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
+PYTHONPATH=\${ULPP}:\${PYTHONPATH}
+GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
+GRPP=\${GRSHARE}/python/site-packages
+PYTHONPATH=\${GRPP}:\${PYTHONPATH}
+PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+
 EOF
 
   if [ $? -ne 0 ]; then
     E unable to create grenv.sh script
   fi
 
-  cd ${INSTALL_DIR}/usr/lib/${PTYHON}/site-packages \
+  cd ${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages \
   && \
     for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
       echo "DYLD_LIBRARY_PATH=\"\${ULPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
-      echo "PYTHONPATH=\"\${ULPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
     done \
-  && echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-  && echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-  && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-  || E failed to create grenv.sh
+    && echo "" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh;
   
   cd ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
   && \
@@ -1764,8 +1761,7 @@ EOF
       > ${INSTALL_DIR}/usr/bin/run-grc \
   && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
   || E "failed to install 'run-grc' script"
-      
-  touch ${TMP_DIR}/.${P}.done
+
 fi
 
 #
