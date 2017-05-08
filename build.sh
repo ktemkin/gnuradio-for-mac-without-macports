@@ -133,7 +133,7 @@ function fetch() {
       done
     fi
     cd ${TMP_DIR} \
-    && curl -k -O ${URL} \
+    && curl -L --insecure -k -O ${URL} \
       || E "failed to download from ${URL}"
   fi
 }
@@ -187,6 +187,7 @@ function unpack() {
     I "Extracting ${Z} to ${T}"
     rm -Rf ${TMP_DIR}/${T}
     cd ${TMP_DIR} \
+    && echo "${cmd} ${opts} ${Z}" \
     && ${cmd} ${opts} ${Z} \
       || E "failed to extract ${Z}"
 
@@ -459,7 +460,7 @@ unset DYLD_LIBRARY_PATH
 #
 
 [[ -d ${XQUARTZ_APP_DIR} ]] \
-  || E "XQuartz is not installed. Download it at https://www.xquartz.org/"
+  || E "XQuartz is not installed. Download it at http://www.xquartz.org/"
 
 XCODE_DEVELOPER_DIR_CMD="xcode-select -p"
 [[ "" = "$(${XCODE_DEVELOPER_DIR_CMD} 2>/dev/null)" ]] \
@@ -491,7 +492,7 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
 # 
 
 P=autoconf-2.69
-URL=https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
+URL=http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
@@ -504,7 +505,7 @@ URL=https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
 # 
 
 P=automake-1.15
-URL=https://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz
+URL=http://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz
 
 SKIP_AUTORECONF=yes \
 SKIP_LIBTOOLIZE=yes \
@@ -552,7 +553,7 @@ fi
 # 
 
 P=xz-5.2.3
-URL=http://tukaani.org/xz/xz-5.2.3.tar.bz2
+URL=https://tukaani.org/xz/xz-5.2.3.tar.bz2
 
 build_and_install_autotools \
   ${P} \
@@ -563,7 +564,7 @@ build_and_install_autotools \
 # 
 
 P=tar-1.29
-URL=https://ftp.gnu.org/gnu/tar/tar-1.29.tar.bz2
+URL=http://ftp.gnu.org/gnu/tar/tar-1.29.tar.bz2
 
 EXTRA_OPTS="--with-lzma=`which xz`"
 build_and_install_autotools \
@@ -575,7 +576,7 @@ build_and_install_autotools \
 # 
 
 P=pkg-config-0.29.1
-URL=https://pkgconfig.freedesktop.org/releases/pkg-config-0.29.1.tar.gz
+URL=https://pkg-config.freedesktop.org/releases/pkg-config-0.29.1.tar.gz
 
 EXTRA_OPTS="--with-internal-glib" \
 build_and_install_autotools \
@@ -588,7 +589,7 @@ build_and_install_autotools \
 #
 
 P=cmake-3.7.2
-URL=https://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
+URL=http://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
 T=${P}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
@@ -614,7 +615,7 @@ fi
 # 
 
   P=boost_1_63_0
-  URL=https://heanet.dl.sourceforge.net/project/boost/boost/1.63.0/boost_1_63_0.tar.bz2
+  URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/boost_1_63_0.tar.bz2
   T=${P}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
@@ -638,7 +639,7 @@ fi
 # 
 
   P=pcre-8.40
-  URL=https://pilotfiber.dl.sourceforge.net/project/pcre/pcre/8.40/pcre-8.40.tar.gz
+  URL=http://pilotfiber.dl.sourceforge.net/project/pcre/pcre/8.40/pcre-8.40.tar.gz
 
   EXTRA_OPTS="--enable-utf" \
   build_and_install_autotools \
@@ -650,7 +651,7 @@ fi
 # 
 
 P=swig-3.0.12
-URL=https://pilotfiber.dl.sourceforge.net/project/swig/swig/${P}/${P}.tar.gz
+URL=http://pilotfiber.dl.sourceforge.net/project/swig/swig/${P}/${P}.tar.gz
 
 SKIP_AUTORECONF=yes \
 SKIP_LIBTOOLIZE=yes \
@@ -674,7 +675,7 @@ build_and_install_autotools \
 # 
 
 P=glib-2.51.1
-URL='https://gensho.acc.umu.se/pub/gnome/sources/glib/2.51/glib-2.51.1.tar.xz'
+URL='http://gensho.acc.umu.se/pub/gnome/sources/glib/2.51/glib-2.51.1.tar.xz'
     
 # mac os x linker seems to grab the /usr/lib version of libpcre rather than ${INSTALL_DIR}/usr/lib
 # hopefully this is just a glib bug and not a systematic failure with
@@ -692,7 +693,7 @@ build_and_install_autotools \
 # 
 
   P=cppunit-1.12.1
-  URL='https://iweb.dl.sourceforge.net/project/cppunit/cppunit/1.12.1/cppunit-1.12.1.tar.gz'
+  URL='http://iweb.dl.sourceforge.net/project/cppunit/cppunit/1.12.1/cppunit-1.12.1.tar.gz'
 
   build_and_install_autotools \
     ${P} \
@@ -702,8 +703,8 @@ build_and_install_autotools \
 # Install mako
 # 
 
-  P=Mako-1.0.6
-  URL=https://pypi.python.org/packages/56/4b/cb75836863a6382199aefb3d3809937e21fa4cb0db15a4f4ba0ecc2e7e8e/Mako-1.0.6.tar.gz
+  P=Mako-1.0.3
+  URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 build_and_install_setup_py \
@@ -753,7 +754,7 @@ build_and_install_setup_py \
 # 
 
     P=orc-0.4.26 \
-    URL='https://gstreamer.freedesktop.org/src/orc/orc-0.4.26.tar.xz'
+    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/orc-0.4.26.tar.xz'
 
   build_and_install_autotools \
     ${P} \
@@ -764,7 +765,7 @@ build_and_install_setup_py \
 # 
 
     P=Cheetah-2.4.4
-    URL='https://pypi.python.org/packages/cd/b0/c2d700252fc251e91c08639ff41a8a5203b627f4e0a2ae18a6b662ab32ea/Cheetah-2.4.4.tar.gz'
+    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Cheetah-2.4.4.tar.gz'
 
   LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_setup_py \
@@ -776,8 +777,8 @@ build_and_install_setup_py \
 # Install lxml
 # 
 
-    P=lxml-3.7.2
-    URL='https://pypi.python.org/packages/66/45/f11fc376f784c6f2e77ffc7a9d02374ff3ceb07ede8c56f918939409577c/lxml-3.7.2.tar.gz'
+    P=lxml-3.7.3
+    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/lxml-3.7.3.tar.gz'
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_setup_py \
@@ -790,21 +791,37 @@ LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 
     P=gobject-introspection-1.40.0
     URL='http://ftp.gnome.org/pub/gnome/sources/gobject-introspection/1.40/gobject-introspection-1.40.0.tar.xz'
-cd 
+
   build_and_install_autotools \
     ${P} \
     ${URL}
 
 #
-# Install png
-# 
+# Install libtiff
+#
 
-    P=libpng-1.6.28
-    URL='https://ftp-osl.osuosl.org/pub/libpng/src/archive/xz/libpng16/libpng-1.6.28.tar.xz'
+P=tiff-3.8.2
+URL='http://dl.maptools.org/dl/libtiff/tiff-3.8.2.tar.gz'
 
+  SKIP_AUTORECONF=yes \
+  SKIP_LIBTOOLIZE=yes \
   build_and_install_autotools \
     ${P} \
     ${URL}
+
+unset SKIP_AUTORECONF
+unset SKIP_LIBTOOLIZE
+
+#
+# Install png
+# 
+
+P=libpng-1.6.28
+URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
+
+build_and_install_autotools \
+  ${P} \
+  ${URL}
 
 #
 # Install jpeg
@@ -828,7 +845,7 @@ T=jpeg-6b
 # 
 
     P='pixman-0.34.0'
-    URL='https://www.cairographics.org/releases/pixman-0.34.0.tar.gz'
+    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/pixman-0.34.0.tar.bz2'
 
   build_and_install_autotools \
     ${P} \
@@ -852,8 +869,8 @@ T=jpeg-6b
 # Install harfbuzz
 # 
 
-  P=harfbuzz-1.4.2
-  URL='https://www.freedesktop.org/software/harfbuzz/release/harfbuzz-1.4.2.tar.bz2'
+  P=harfbuzz-1.4.3
+  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/harfbuzz-1.4.3.tar.bz2'
 
   build_and_install_autotools \
     ${P} \
@@ -864,7 +881,7 @@ T=jpeg-6b
 # 
 
   P=fontconfig-2.12.1
-  URL='https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.12.1.tar.bz2'
+  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/fontconfig-2.12.1.tar.bz2'
 
   build_and_install_autotools \
     ${P} \
@@ -875,7 +892,7 @@ T=jpeg-6b
 # 
 
     P=cairo-1.14.8
-    URL='https://www.cairographics.org/releases/cairo-1.14.8.tar.xz'
+    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/cairo-1.14.8.tar.xz'
 
   build_and_install_autotools \
     ${P} \
@@ -886,7 +903,7 @@ T=jpeg-6b
 # 
 
     P=py2cairo-1.10.0
-    URL='https://www.cairographics.org/releases/py2cairo-1.10.0.tar.bz2'
+    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/py2cairo-1.10.0.tar.bz2'
 
   build_and_install_autotools \
     ${P} \
@@ -908,7 +925,7 @@ T=jpeg-6b
 # 
 
   P=gdk-pixbuf-2.36.4
-  URL='https://muug.ca/mirror/gnome/sources/gdk-pixbuf/2.36/gdk-pixbuf-2.36.4.tar.xz'
+  URL='http://muug.ca/mirror/gnome/sources/gdk-pixbuf/2.36/gdk-pixbuf-2.36.4.tar.xz'
 
   EXTRA_OPTS="--without-libtiff --without-libjpeg" \
   build_and_install_autotools \
@@ -920,7 +937,7 @@ T=jpeg-6b
 # 
 
   P=ATK_2_22
-  URL='https://git.gnome.org/browse/atk/snapshot/ATK_2_22.tar.xz'
+  URL='http://git.gnome.org/browse/atk/snapshot/ATK_2_22.tar.xz'
 
   build_and_install_autotools \
     ${P} \
@@ -933,7 +950,7 @@ T=jpeg-6b
 # this is unfortunately the only stage of the build that I have not
 # fully automated.
 # encountering this bug
-# https://groups.google.com/forum/#!topic/bugzillagnometelconnect4688-bugzillagnometelconnect4688/gcf7EtF9icA
+# http://groups.google.com/forum/#!topic/bugzillagnometelconnect4688-bugzillagnometelconnect4688/gcf7EtF9icA
 
 #  P=pango-1.40.3
 #  URL=http://ftp.gnome.org/pub/GNOME/sources/pango/1.40/pango-1.40.3.tar.xz
@@ -973,7 +990,7 @@ build_and_install_autotools \
 # 
 
   P=numpy-1.11.1
-  URL='https://superb-sea2.dl.sourceforge.net/project/numpy/NumPy/1.11.1/numpy-1.11.1.tar.gz'
+  URL='http://superb-sea2.dl.sourceforge.net/project/numpy/NumPy/1.11.1/numpy-1.11.1.tar.gz'
 
   build_and_install_setup_py \
     ${P} \
@@ -996,7 +1013,7 @@ build_and_install_autotools \
 #
 
 P=f2c
-URL=https://github.com/barak/f2c.git
+URL=http://github.com/barak/f2c.git
 T=${P}
 BRANCH=master
 
@@ -1025,7 +1042,7 @@ fi
 #
 
 P=libf2c-20130927
-URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libf2c-20130927.zip
+URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libf2c-20130927.zip
 T=${P}
 BRANCH=""
 
@@ -1221,7 +1238,7 @@ fi
 
 #build_and_install_autotools \
 #  SDL2-2.0.5 \
-#  'https://www.libsdl.org/release/SDL2-2.0.5.tar.gz'
+#  'http://www.libsdl.org/release/SDL2-2.0.5.tar.gz'
 
 #fi
 
@@ -1275,7 +1292,7 @@ T=${P}
 #
 
   P=wxPython-src-3.0.2.0
-  URL=https://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
+  URL=http://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
   T=${P}
   BRANCH=""
 
@@ -1336,8 +1353,8 @@ fi
 # Install QT
 #
 
-P=qt-everywhere-opensource-src-4.8.7
-URL=https://www.mirrorservice.org/sites/download.qt-project.org/official_releases/qt/4.8/4.8.7/qt-everywhere-opensource-src-4.8.7.tar.gz
+P=qt-x11-opensource-src-4.4.3
+URL=http://mirror.csclub.uwaterloo.ca/qtproject/archive/qt/4.4/qt-x11-opensource-src-4.4.3.tar.gz
 T=${P}
 BRANCH=""
 
@@ -1353,42 +1370,42 @@ else
   
   I configuring ${P} \
   && cd ${TMP_DIR}/${T} \
-  && ./configure \
-    -prefix ${INSTALL_DIR}/usr \
-    -release \
-    -confirm-license \
-    -opensource \
-    -no-system-proxies \
+  && export OPENSOURCE_CXXFLAGS="-D__USE_WS_X11__" \
+  && sh configure                                              \
+    -v                                                         \
+    -confirm-license                                           \
+    -continue                                                  \
+    -release                                                   \
+    -prefix          ${INSTALL_DIR}/usr                                 \
+    -docdir          ${INSTALL_DIR}/usr/share/doc/${name}               \
+    -examplesdir     ${INSTALL_DIR}/usr/share/${name}/examples          \
+    -demosdir        ${INSTALL_DIR}/usr/share/${name}/demos             \
+    -stl \
     -no-qt3support \
     -no-xmlpatterns \
-    -no-audio-backend \
     -no-phonon \
     -no-phonon-backend \
     -no-webkit \
-    -no-javascript-jit \
-    -no-script \
-    -no-scripttools \
-    -no-declarative \
-    -graphicssystem opengl \
     -no-libmng \
     -nomake demos \
     -nomake examples \
-    -no-multimedia \
-    -no-audio-backend \
-    -no-phonon \
-    -no-phonon-backend \
+    -system-libpng \
     -no-gif \
-    -no-webkit \
-    -no-libtiff \
+    -system-libtiff \
     -no-nis \
     -no-openssl \
-    -rpath \
     -no-dbus \
     -no-cups \
     -no-iconv \
     -no-pch \
     -arch x86_64 \
-    -opengl \
+    -L${INSTALL_DIR}/usr/lib                                            \
+    -liconv                                                    \
+    -lresolv                                                   \
+    -I${INSTALL_DIR}/usr/include \
+    -I${INSTALL_DIR}/usr/include/glib-2.0                               \
+    -I${INSTALL_DIR}/usr/lib/glib-2.0/include                           \
+    -I${INSTALL_DIR}/usr/include/libxml2 \
   || E failed to configure ${P}
   
   # qmake obviously still has some Makefile generation issues..
@@ -1410,50 +1427,6 @@ else
   && ${MAKE} install \
   || E failed to install ${P}
 
-#SKIP_AUTORECONF="yes" \
-#SKIP_LIBTOOLIZE="yes" \
-#EXTRA_OPTS="\
-#  -release \
-#  -confirm-license \
-#  -opensource \
-#  -no-system-proxies \
-#  -no-qt3support \
-#  -no-xmlpatterns \
-#  -no-audio-backend \
-#  -no-phonon \
-#  -no-phonon-backend \
-#  -no-webkit \
-#  -no-javascript-jit \
-#  -no-script \
-#  -no-scripttools \
-#  -no-declarative \
-#  -graphicssystem opengl \
-#  -no-libmng \
-#  -nomake demos \
-#  -nomake examples \
-#  -no-multimedia \
-#  -no-audio-backend \
-#  -no-phonon \
-#  -no-phonon-backend \
-#  -no-gif \
-#  -no-webkit \
-#  -no-libtiff \
-#  -no-nis \
-#  -no-openssl \
-#  -rpath \
-#  -no-dbus \
-#  -no-cups \
-#  -no-iconv \
-#  -no-pch \
-#  -arch x86_64 \
-#  -opengl \
-#" \
-#build_and_install_autotools \
-#  ${P} \
-#  ${URL} \
-#  ${T} \
-#  "${BRANCH}" \
-#  "./configure -prefix ${INSTALL_DIR}/usr "
 
   if [ "yes" = "${INSTALL_QGL}" ]; then
     cd ${TMP_DIR}/${T} \
@@ -1472,7 +1445,7 @@ fi
 #
 
 P=qwt-6.1.3
-URL=https://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
+URL=http://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
 T=${P}
 BRANCH=""
 
@@ -1491,7 +1464,7 @@ build_and_install_qmake \
 #
 
 P=sip-4.19.1
-URL=https://svwh.dl.sourceforge.net/project/pyqt/sip/sip-4.19.1/sip-4.19.1.tar.gz
+URL=http://svwh.dl.sourceforge.net/project/pyqt/sip/sip-4.19.1/sip-4.19.1.tar.gz
 T=${P}
 BRANCH=""
 
@@ -1521,7 +1494,7 @@ fi
 #
 
 P=PyQt4_gpl_x11-4.12
-URL=https://superb-sea2.dl.sourceforge.net/project/pyqt/PyQt4/PyQt-4.12/PyQt4_gpl_x11-4.12.tar.gz
+URL=http://superb-sea2.dl.sourceforge.net/project/pyqt/PyQt4/PyQt-4.12/PyQt4_gpl_x11-4.12.tar.gz
 T=${P}
 BRANCH=""
 
@@ -1534,7 +1507,7 @@ else
   cd ${TMP_DIR}/${T} \
   && \
   CFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
-  CXXFLAGS="${CPPFLAGS}  $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
+  CXXFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
   LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL)" \
   ${PYTHON} configure.py \
     --confirm-license \
@@ -1616,7 +1589,7 @@ build_and_install_autotools \
 #
 
 P=hackrf-2017.02.1
-URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
+URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
 T=${P}/host
 
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
@@ -1630,7 +1603,7 @@ build_and_install_cmake \
 #
 
 P=bladeRF-2016.06
-URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/bladerf-2016.06.tar.gz
+URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/bladerf-2016.06.tar.gz
 T=${P}/host
 
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
@@ -1644,7 +1617,7 @@ build_and_install_cmake \
 #
 
 P=airspy
-URL=https://github.com/airspy/host.git
+URL=http://github.com/airspy/host.git
 T=${P}
 BRANCH=v1.0.9
 
@@ -1694,7 +1667,7 @@ build_and_install_cmake \
 ## 
 #
 #  P=CairoSVG
-#  URL=https://github.com/Kozea/CairoSVG.git
+#  URL=http://github.com/Kozea/CairoSVG.git
 #  T=${P}
 #  BRANCH=1.0.22
 #
@@ -1728,36 +1701,33 @@ build_and_install_cmake \
 
 P=scripts
 
-if [ -f ${TMP_DIR}/.${P}.done ]; then
-  I already installed ${P}
-else
+# always recreate scripts
+if [ 1 -eq 1 ]; then
 
   I creating grenv.sh script
   cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
-    PYTHON=${PYTHON}
-    INSTALL_DIR=${INSTALL_DIR}
-    ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
-    PYTHONPATH=\${ULPP}:\${PYTHONPATH}
-    GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
-    GRPP=\${GRSHARE}/python/site-packages
-    PYTHONPATH=\${GRPP}:\${PYTHONPATH}
-    PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+PYTHON=${PYTHON}
+INSTALL_DIR=${INSTALL_DIR}
+ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
+PYTHONPATH=\${ULPP}:\${PYTHONPATH}
+GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
+GRPP=\${GRSHARE}/python/site-packages
+PYTHONPATH=\${GRPP}:\${PYTHONPATH}
+PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+
 EOF
 
   if [ $? -ne 0 ]; then
     E unable to create grenv.sh script
   fi
 
-  cd ${INSTALL_DIR}/usr/lib/${PTYHON}/site-packages \
+  cd ${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages \
   && \
     for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
       echo "DYLD_LIBRARY_PATH=\"\${ULPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
-      echo "PYTHONPATH=\"\${ULPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
     done \
-  && echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-  && echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-  && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-  || E failed to create grenv.sh
+    && echo "" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh;
   
   cd ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
   && \
@@ -1785,8 +1755,7 @@ EOF
       > ${INSTALL_DIR}/usr/bin/run-grc \
   && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
   || E "failed to install 'run-grc' script"
-      
-  touch ${TMP_DIR}/.${P}.done
+
 fi
 
 #
@@ -1794,7 +1763,7 @@ fi
 # 
 
   P=gr-logo
-  URL=https://github.com/gnuradio/gr-logo.git
+  URL=http://github.com/gnuradio/gr-logo.git
   T=${P}
   BRANCH="master"
 
@@ -1866,7 +1835,7 @@ I created Info.plist
 #
 
 P=create-dmg
-URL=https://github.com/andreyvit/create-dmg.git
+URL=http://github.com/andreyvit/create-dmg.git
 T=${P}
 BRANCH=master
 

@@ -1,0 +1,29 @@
+diff --git a/configure.py b/configure.py
+index 6118d39..d595e35 100644
+--- a/configure.py
++++ b/configure.py
+@@ -1441,10 +1441,10 @@ def set_sip_flags(pyqt):
+     if sys.platform == 'win32':
+         plattag = "WS_WIN"
+     elif sys.platform == "darwin":
+-        if "__USE_WS_X11__" in sipcfg.build_macros()["DEFINES"]:
++#        if "__USE_WS_X11__" in sipcfg.build_macros()["DEFINES"]:
+             plattag = "WS_X11"
+-        else:
+-            plattag = "WS_MACX"
++#        else:
++#            plattag = "WS_MACX"
+     else:
+         plattag = "WS_X11"
+ 
+@@ -1946,8 +1946,8 @@ def get_qt_configuration():
+         else:
+             exe_file = os.path.join("release", app + ".exe")
+             make_target = " release"
+-    elif sys.platform == "darwin":
+-        exe_file = os.path.join(app + ".app", "Contents", "MacOS", app)
++#    elif sys.platform == "darwin":
++#        exe_file = os.path.join(app + ".app", "Contents", "MacOS", app)
+     else:
+         exe_file = os.path.join(".", app)
+ 

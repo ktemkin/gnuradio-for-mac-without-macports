@@ -1,0 +1,13 @@
+diff --git a/src/corelib/plugin/qlibrary.cpp b/src/corelib/plugin/qlibrary.cpp
+index b64ea1a..26d7995 100644
+--- a/src/corelib/plugin/qlibrary.cpp
++++ b/src/corelib/plugin/qlibrary.cpp
+@@ -515,7 +515,7 @@ bool QLibrary::isLibrary(const QString &fileName)
+     if (completeSuffix.isEmpty())
+         return false;
+     QStringList suffixes = completeSuffix.split(QLatin1Char('.'));
+-# if defined(Q_WS_MAC)
++# if 1
+ 
+     // On Mac, libs look like libmylib.1.0.0.dylib
+     const QString lastSuffix = suffixes.at(suffixes.count() - 1);

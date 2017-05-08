@@ -1,0 +1,13 @@
+diff --git a/src/corelib/io/qprocess_unix.cpp b/src/corelib/io/qprocess_unix.cpp
+index 91fd6c9..9dcd819 100644
+--- a/src/corelib/io/qprocess_unix.cpp
++++ b/src/corelib/io/qprocess_unix.cpp
+@@ -532,7 +532,7 @@ static char **_q_dupEnvironment(const QStringList &environment, int *envc)
+     // if LD_LIBRARY_PATH exists in the current environment, but
+     // not in the environment list passed by the programmer, then
+     // copy it over.
+-#if defined(Q_WS_MAC)
++#if defined(Q_OS_MAC)
+     static const char libraryPath[] = "DYLD_LIBRARY_PATH";
+ #else
+     static const char libraryPath[] = "LD_LIBRARY_PATH";
