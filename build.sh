@@ -51,7 +51,7 @@ XQUARTZ_APP_DIR=/Applications/Utilities/XQuartz.app
 
 BUILD_DIR="$(top_srcdir)"
 TMP_DIR=${BUILD_DIR}/tmp
-APP_DIR=/Applications/GNURadio.app
+APP_DIR="${APP_DIR:-"/Applications/GNURadio.app"}"
 CONTENTS_DIR=${APP_DIR}/Contents
 RESOURCES_DIR=${CONTENTS_DIR}/Resources
 INSTALL_DIR=${CONTENTS_DIR}/MacOS
@@ -205,10 +205,18 @@ function unpack() {
     fi
     
     for PP in $PATCHES; do
-      I "applying patch ${PP}"
-      cd ${TMP_DIR}/${T} \
-        && git apply ${PP} \
-        || E "git apply ${PP} failed"
+      if [ "${PP%".sh.patch"}" != "${PP}" ]; then
+        # This ends with .sh.patch, so source it:
+        I "applying script ${PP}"
+        cd ${TMP_DIR}/${T} \
+          && . ${PP} \
+          || E "sh ${PP} failed"
+      else
+        I "applying patch ${PP}"
+        cd ${TMP_DIR}/${T} \
+          && git apply ${PP} \
+          || E "git apply ${PP} failed"
+      fi
     done
   fi
 }
@@ -475,7 +483,8 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
 #
 
 [[ -d /Library/Frameworks/Python.framework/Versions/2.7 ]] \
-  || E "Python 2.7 is not installed. Download it here: http://www.python.org/downloads/"
+  || [[ -d /System/Library/Frameworks/Python.framework/Versions/2.7 ]] \
+  || E "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
 
 
 #
@@ -807,12 +816,12 @@ unset SKIP_LIBTOOLIZE
 # Install png
 # 
 
-    P=libpng-1.6.28
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
+P=libpng-1.6.28
+URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL}
+build_and_install_autotools \
+  ${P} \
+  ${URL}
 
 #
 # Install jpeg
@@ -1285,6 +1294,7 @@ T=${P}
   P=wxPython-src-3.0.2.0
   URL=http://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
   T=${P}
+  BRANCH=""
 
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I "already installed ${P}"    
@@ -1310,7 +1320,7 @@ T=${P}
       CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
       LDFLAGS="${LDFLAGS} ${_extra_libs}" \
       ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 install \
-        --prefix=/Applications/GNURadio.app/Contents/MacOS/usr \
+        --prefix="${INSTALL_DIR}/usr" \
     && D "copying wx.pth to ${PYTHONPATH}/wx.pth" \
     && cp \
        ${TMP_DIR}/${T}/wxPython/src/wx.pth \
@@ -1439,12 +1449,6 @@ URL=http://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
 T=${P}
 BRANCH=""
 
-SHOULD_DO_REBUILD=""
-
-#if [ ! -f ${TMP_DIR}/.${P}.done ]; then
-#  SHOULD_DO_REBUILD="yes"
-#fi
-
 QMAKE_CXX="${CXX}" \
 QMAKE_CXXFLAGS="${CPPFLAGS}" \
 QMAKE_LFLAGS="${LDFLAGS}" \
@@ -1454,16 +1458,6 @@ build_and_install_qmake \
   ${URL} \
   ${T} \
   ${BRANCH}
-
-#if [ "yes" = "${SHOULD_DO_REBUILD}" ]; then
-#  cd ${TMP_DIR}/${T} \
-#  && I re-doing final link because qwt does not respect QMAKE_LFLAGS_SONAME \
-#  && git apply ${BUILD_DIR}/patches/qwt-bullshit.diff \
-#  && rm lib/* \
-#  && ${MAKE} \
-#  && ${MAKE} install \
-#  || E failed to build and install ${P}
-#fi
 
 #
 # Install sip
