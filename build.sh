@@ -1547,7 +1547,8 @@ EXTRA_OPTS="\
   -DTHRIFT_INCLUDE_DIRS=${INSTALL_DIR}/usr/include \
   -DCPPUNIT_INCLUDE_DIRS=${INSTALL_DIR}/usr/include/cppunit \
   -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
-  -DPYTHON_INCLUDE_DIR=/Library/Frameworks/Python.framework/Versions/2.7/Headers \
+  '-DCMAKE_C_FLAGS=-framework Python' \
+  '-DCMAKE_CXX_FLAGS=-framework Python' \
   -DSPHINX_EXECUTABLE=${INSTALL_DIR}/usr/bin/rst2html-2.7.py \
   -DGR_PYTHON_DIR=${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
   ${TMP_DIR}/${T} \
