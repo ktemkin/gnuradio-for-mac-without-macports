@@ -8,7 +8,7 @@ GNURADIO_BRANCH=3.7.10.1
 # default os x path minus /usr/local/bin, which could have pollutants
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
-EXTS="zip tar.gz tar.bz2 tar.xz"
+EXTS="zip tar.gz tgz tar.bz2 tbz2 tar.xz"
 
 SKIP_FETCH=true
 SKIP_AUTORECONF=
