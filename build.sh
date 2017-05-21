@@ -188,7 +188,7 @@ function fetch() {
         if [ -f ${TMP_DIR}/${P}.${zz} ]; then
           Z=${P}.${zz}
           D "already downloaded ${Z}"
-          verify_checksum "${Z}" "${CKSUM}"
+          verify_checksum "${TMP_DIR}/${Z}" "${CKSUM}"
           return
         fi
       done
