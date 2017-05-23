@@ -1,8 +1,5 @@
 #!/bin/sh
 
-echo "WARNING: this tool is not ready" > /dev/stderr
-exit 1 
-
 DEBUG=1
 
 DYLIB_EXTS="dylib so"
@@ -49,12 +46,41 @@ function dylib_id() {
   echo "${id}"
 }
 
+function check_file_exists_relative_to() {
+  local rfile="$1"
+  local rdir="$2"
+  local r
+  cd ${rdir} && test -f ../${rn}
+  r=$?
+  cd $OLDPWD
+  return $r
+}
+
+function change_dylib_dep() {
+  local dylib="$1"
+  local from="$2"
+  local to="$3"
+  install_name_tool -change ${from}  ${to} ${dylib} \
+    || die "command failed: install_name_tool -change ${from}  ${to} ${dylib}"
+}
+
+function change_dylib_id() {
+  local dylib="$1"
+  local id="$2"
+  install_name_tool -id ${id} ${dylib} \
+    || die "command failed: install_name_tool -id ${id} ${dylib}"
+}
+
 function fix_dylib_dep() {
   local install_dir="$1"
   local dylib="$2"
   local dep="$3"
-  local rn="$(rel ${install_dir} ${dylib})"
+  local rn="$(basename ${dylib})"
   
+  if [[ $dep == "@loader_path"*  ]]; then
+    #D "$(basename ${dylib}): skipping dep ${dep}"
+    return
+  fi
   if [[ $dep == "/usr/"*  ]]; then
     #D "$(basename ${dylib}): skipping dep ${dep}"
     return
@@ -69,10 +95,11 @@ function fix_dylib_dep() {
   fi
 
   for d in ${IDS[*]} ${DYLIBS[*]}; do
-    #D "'$(basename $d)' = '$(basename $dep)'?"
     if [ "$(basename $d)" = "$(basename $dep)" ]; then
-      D dylib: ${rn} dep: "@loader_path/"$(rel ${install_dir} ${dep})
-      #install_name_tool -change ${dep} @loader_path/${rn} ${dylib} 
+      rn="$(rel ${install_dir}/usr ${d})"
+      check_file_exists_relative_to ../${rn} ${install_dir}/usr/bin \
+        || die "@loader_path/../${rn}: No such file or directory"
+      change_dylib_dep ${dylib} ${d} @loader_path/../${rn}
       return
     fi
   done
@@ -84,15 +111,22 @@ function fix_dylib_id() {
   local install_dir="$1"
   local dylib="$2"
   local id="$(dylib_id ${dylib})"
-  local rn="$(rel ${install_dir} ${dylib})"
+  local rn="$(rel ${install_dir}/usr ${id})"
+  
+  if [[ $id == "/usr/"*  ]]; then
+    #D "$(basename ${dylib}): skipping dep ${dep}"
+    return
+  fi
   
   if [[ $id == "/System/Library/Frameworks/"*  ]]; then
     #D "skipping $(basename ${dylib}) with id ${id}"
     return
   fi
-      
-  D dylib: ${rn} id: "@loader_path/${rn}"
-  #install_name_tool -change ${dep} @loader_path/${rn} ${dylib} 
+
+  check_file_exists_relative_to ../${rn} ${install_dir}/usr/bin \
+    || die "@loader_path/../${rn}: No such file or directory"
+
+  change_dylib_id ${id} ${dylib} 
 }
 
 function make_portable_dylib() {
@@ -104,7 +138,7 @@ function make_portable_dylib() {
   local dn="$(dirname $1)"
   local dep=""
   
-  #D "Processing ${dylib}"
+  D "Processing ${dylib}"
   
   local lineno=0
   tmpfile="$(mktemp /tmp/$(basename ${0}).XXXXXXXX)" \
@@ -118,7 +152,7 @@ function make_portable_dylib() {
 #  D "opened ${tmpfile} as fd 3"
         
   otool -L ${dylib} > ${tmpfile} \
-    || die failed to write otool output to ${tmpfile}
+    || die "failed command: otool -L ${dylib} > ${tmpfile}"
     
   #D "wrote otool output to ${tmpfile}"
     
@@ -140,6 +174,26 @@ function make_portable_dylib() {
   #D "removed ${tmpfile}"
 }
 
+function progress() {
+  local num="$1"
+  local den="$2"
+  local pcnt=$(( (num+1) * 100 / den ))
+  # a decent way to get actual terminal width?
+  local twidth=80
+  local front=6
+  local back=1
+  local prog=$(((twidth-front-back) * pcnt / 100))
+  local i
+  printf "\r%3d%% " ${pcnt}; /bin/echo -n "|"
+  for ((i=0; i < prog; i++)); do
+    printf "="
+  done
+  for ((i=0; i < twidth - front - back - prog; i++)); do
+    printf "-"
+  done
+  /bin/echo -n "|"
+}
+
 function main() {
   
   local install_dir="$(echo $1 | sed -e 's|//|/|g' -e 's|/$||')"
@@ -154,9 +208,13 @@ function main() {
 #  echo DYLIBS: ${DYLIBS[*]}
 #  echo IDS: ${IDS[*]}
   
+  j=0
   for i in ${DYLIBS[*]}; do
-    make_portable_dylib $install_dir $i
+    progress $j ${#DYLIBS[@]}
+    j=$((j+1))
+    make_portable_dylib "$install_dir" "$i"
   done
+  echo ""
 }
 
 #main @INSTALL_DIR@/
