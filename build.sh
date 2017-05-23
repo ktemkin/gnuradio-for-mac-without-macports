@@ -1761,9 +1761,6 @@ build_and_install_autotools \
   ${CKSUM} \
   ${T}
 
-# had to manually correct the dylib version for uhd
-# install_name_tool -change /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.010.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/python2.7/site-packages/osmosdr/_osmosdr_swig.so
-
 #
 # Install libhackrf
 #
