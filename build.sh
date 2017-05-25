@@ -583,6 +583,14 @@ build_and_install_autotools \
   ${P} \
   ${URL}
 
+# Required to prevent linker errors down the line..
+for i in gio glib gmodule gobject gthread; do
+  install_name_tool \
+    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
+    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
+done
+
+
 
 #
 # Install CMake
@@ -759,6 +767,13 @@ build_and_install_setup_py \
   build_and_install_autotools \
     ${P} \
     ${URL}
+
+  # Required to prevent linker errors down the line..
+  for i in orc; do
+    install_name_tool \
+      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
+      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
+  done
 
 #
 # Install Cheetah
@@ -1486,9 +1501,6 @@ else
   && ${MAKE} install \
   || E failed to build
 
-# needed to run the commands below to correct the gthread and glib dynamic references in all PyQt4 .so files 
-  #for i in /Applications/GNURadio.app/Contents/MacOS/usr/lib/python2.7/site-packages/PyQt4/*.so; do install_name_tool -change /Applications/GNURadio.app/Contents/MacOS/usr/lib/libglib-2.0.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/libglib-2.0.0.dylib $i; install_name_tool -change /Applications/GNURadio.app/Contents/MacOS/usr/lib/libgthread-2.0.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/libgthread-2.0.0.dylib $i; done
-
   touch ${TMP_DIR}/.${P}.done
 fi
 
@@ -1589,7 +1601,7 @@ build_and_install_autotools \
   ${T}
 
 # had to manually correct the dylib version for uhd
-# /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.010.dylib
+# install_name_tool -change /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.010.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/python2.7/site-packages/osmosdr/_osmosdr_swig.so
 
 #
 # Install libhackrf

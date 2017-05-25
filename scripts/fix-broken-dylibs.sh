@@ -50,16 +50,17 @@ function check_file_exists_relative_to() {
   local rfile="$1"
   local rdir="$2"
   local r
-  cd ${rdir} && test -f ../${rn}
+  cd ${rdir} && test -e ../${rn}
   r=$?
   cd $OLDPWD
   return $r
 }
 
 function change_dylib_dep() {
-  local dylib="$1"
-  local from="$2"
-  local to="$3"
+  local from="$1"
+  local to="$2"
+  local dylib="$3"
+  D install_name_tool -change ${from}  ${to} ${dylib}
   install_name_tool -change ${from}  ${to} ${dylib} \
     || die "command failed: install_name_tool -change ${from}  ${to} ${dylib}"
 }
@@ -75,9 +76,9 @@ function fix_dylib_dep() {
   local install_dir="$1"
   local dylib="$2"
   local dep="$3"
-  local rn="$(basename ${dylib})"
+  local rn
   
-  if [[ $dep == "@loader_path"*  ]]; then
+  if [[ $dep == "@rpath"*  ]]; then
     #D "$(basename ${dylib}): skipping dep ${dep}"
     return
   fi
@@ -96,10 +97,14 @@ function fix_dylib_dep() {
 
   for d in ${IDS[*]} ${DYLIBS[*]}; do
     if [ "$(basename $d)" = "$(basename $dep)" ]; then
-      rn="$(rel ${install_dir}/usr ${d})"
+      if [[ $d == "@rpath/../"* ]]; then
+        rn="${d/@rpath\/..\//}"
+      else
+        rn="$(rel ${install_dir}/usr ${dep})"
+      fi
       check_file_exists_relative_to ../${rn} ${install_dir}/usr/bin \
-        || die "@loader_path/../${rn}: No such file or directory"
-      change_dylib_dep ${dylib} ${d} @loader_path/../${rn}
+        || die "@rpath/../${rn}: No such file or directory"
+      change_dylib_dep "${dep}" "@rpath/../${rn}" "${dylib}" 
       return
     fi
   done
@@ -111,7 +116,12 @@ function fix_dylib_id() {
   local install_dir="$1"
   local dylib="$2"
   local id="$(dylib_id ${dylib})"
-  local rn="$(rel ${install_dir}/usr ${id})"
+  local rn
+  
+  if [[ $id == "@rpath"*  ]]; then
+    #D "$(basename ${dylib}): skipping dep ${dep}"
+    return
+  fi
   
   if [[ $id == "/usr/"*  ]]; then
     #D "$(basename ${dylib}): skipping dep ${dep}"
@@ -123,10 +133,15 @@ function fix_dylib_id() {
     return
   fi
 
-  check_file_exists_relative_to ../${rn} ${install_dir}/usr/bin \
-    || die "@loader_path/../${rn}: No such file or directory"
+  if [[ $id == *"/"* ]]; then
+    rn="$(rel ${install_dir}/usr ${id})"
+  else
+    rn="$(rel ${install_dir}/usr ${dylib})"
+  fi
 
-  change_dylib_id ${id} ${dylib} 
+  check_file_exists_relative_to ../${rn} ${install_dir}/usr/bin \
+      || die "@rpath/../${rn}: No such file or directory"
+  change_dylib_id ${dylib} @rpath/../${rn}
 }
 
 function make_portable_dylib() {
@@ -137,11 +152,12 @@ function make_portable_dylib() {
   local bn="$(basename $1)"
   local dn="$(dirname $1)"
   local dep=""
+  local line
   
   D "Processing ${dylib}"
   
   local lineno=0
-  tmpfile="$(mktemp /tmp/$(basename ${0}).XXXXXXXX)" \
+  tmpfile="$(mktemp /tmp/$(basename FOO).XXXXXXXX)" \
     || die failed to create tmpfile
     
   #D "using tmpfile ${tmpfile}"
@@ -191,11 +207,11 @@ function progress() {
   for ((i=0; i < twidth - front - back - prog; i++)); do
     printf "-"
   done
-  /bin/echo -n "|"
+  /bin/echo "|"
 }
 
-function main() {
-  
+function scanlibs() {
+
   local install_dir="$(echo $1 | sed -e 's|//|/|g' -e 's|/$||')"
   DYLIBS="$(find_dylibs ${install_dir})"
   DYLIBS=($DYLIBS)
@@ -207,6 +223,11 @@ function main() {
   
 #  echo DYLIBS: ${DYLIBS[*]}
 #  echo IDS: ${IDS[*]}
+}
+
+function main() {
+  local install_dir="$1"
+  scanlibs "${install_dir}"
   
   j=0
   for i in ${DYLIBS[*]}; do
@@ -219,3 +240,8 @@ function main() {
 
 #main @INSTALL_DIR@/
 main /Applications/GNURadio.app/Contents/MacOS
+
+#scanlibs /Applications/GNURadio.app/Contents/MacOS
+#make_portable_dylib \
+#  /Applications/GNURadio.app/Contents/MacOS \
+#  /Applications/GNURadio.app/Contents/MacOS/usr/share/gnuradio/python/site-packages/gnuradio/zeromq/_zeromq_swig.so
