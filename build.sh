@@ -28,11 +28,6 @@ function I() {
   echo "I: ${@}"
 }
 
-function N() {
-  # make Notice brighter than Info:
-  printf '%sN: %s%s\n' "$(tput bold)" "${*}" "$(tput sgr0)"
-}
-
 function E() {
   local r
   r=$?
@@ -122,10 +117,6 @@ function verify_git() {
   #    http://stackoverflow.com/questions/4127967/validate-if-commit-exists
   test "$( git -C "${1}" rev-list HEAD.."${2}" | wc -l )" -eq 0 \
     || E "Repository '${1}' does not match '${2}'"
-  # Lastly, emit a notice if the repo appears to have newer commits, but do not fail:
-  test "$( git -C "${1}" rev-parse HEAD )" = "${2}" \
-    && D "Repository '${1}' matches '${2}'" \
-    || N "Repository '${1}' has newer commits than '${2}'"
 }
 
 function verify_checksum() {
