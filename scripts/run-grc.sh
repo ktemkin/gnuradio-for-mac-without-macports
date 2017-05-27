@@ -2,6 +2,4 @@
 
 source @INSTALL_DIR@/usr/bin/grenv.sh
 
-gnuradio-companion ${@} &
-
-exit 0
+exec gnuradio-companion ${@}
