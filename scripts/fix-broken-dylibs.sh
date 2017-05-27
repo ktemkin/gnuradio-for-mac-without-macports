@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEBUG=0
+#DEBUG=1
 
 DYLIB_EXTS="dylib so"
 
