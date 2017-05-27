@@ -1902,7 +1902,8 @@ if [ 1 -eq 1 ]; then
   I creating grenv.sh script
   cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
 PYTHON=${PYTHON}
-INSTALL_DIR=${INSTALL_DIR}
+APP_DIR=\${APP_DIR:-/Applications/GNURadio.app}
+INSTALL_DIR=\${APP_DIR}/Contents/MacOS
 ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
 PYTHONPATH=\${ULPP}:\${PYTHONPATH}
 GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
@@ -1935,19 +1936,9 @@ EOF
   && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
   || E failed to create grenv.sh
   
-  I installing find-broken-dylibs script \
-  && mkdir -p ${INSTALL_DIR}/usr/bin \
-  && cat ${BUILD_DIR}/scripts/find-broken-dylibs.sh \
-      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
-      > ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
-  && chmod +x ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
-  || E "failed to install 'find-broken-dylibs' script"
-
   I installing run-grc script \
   && mkdir -p ${INSTALL_DIR}/usr/bin \
-  && cat ${BUILD_DIR}/scripts/run-grc.sh \
-      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
-      > ${INSTALL_DIR}/usr/bin/run-grc \
+  && cp ${BUILD_DIR}/scripts/run-grc.sh ${INSTALL_DIR}/usr/bin/run-grc \
   && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
   || E "failed to install 'run-grc' script"
 
@@ -2086,9 +2077,9 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 #fi
 
 I ============================================================================
-I finding broken .dylibs and .so files in ${INSTALL_DIR}
+I fixing .dylibs and .so files in ${INSTALL_DIR}
 I ============================================================================
-${INSTALL_DIR}/usr/bin/find-broken-dylibs
+INSTALL_DIR=${INSTALL_DIR} sh ${BUILD_DIR}/scripts/fix-broken-dylibs.sh
 I ============================================================================
 
 I '!!!!!! DONE !!!!!!'

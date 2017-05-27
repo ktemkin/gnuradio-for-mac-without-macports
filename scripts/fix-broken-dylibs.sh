@@ -238,10 +238,5 @@ function main() {
   echo ""
 }
 
-#main @INSTALL_DIR@/
-main /Applications/GNURadio.app/Contents/MacOS
-
-#scanlibs /Applications/GNURadio.app/Contents/MacOS
-#make_portable_dylib \
-#  /Applications/GNURadio.app/Contents/MacOS \
-#  /Applications/GNURadio.app/Contents/MacOS/usr/share/gnuradio/python/site-packages/gnuradio/zeromq/_zeromq_swig.so
+INSTALL_DIR="${INSTALL_DIR:-/Applications/GNURadio.app/Contents/MacOS}"
+main "${INSTALL_DIR}"

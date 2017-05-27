@@ -1,6 +1,8 @@
 #!/bin/sh
 
-source @INSTALL_DIR@/usr/bin/grenv.sh
+export APP_DIR="$(cd "$(dirname "${0}")"/../../../../; pwd)"
+
+source "${APP_DIR}"/Contents/MacOS/usr/bin/grenv.sh
 
 gnuradio-companion ${@} &
 
