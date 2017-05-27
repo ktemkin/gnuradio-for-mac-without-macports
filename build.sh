@@ -655,13 +655,11 @@ build_and_install_autotools \
   ${CKSUM}
 
 # Required to prevent linker errors down the line..
-for i in gio glib gmodule gobject gthread; do
-  install_name_tool \
-    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
-    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
-done
-
-
+#for i in gio glib gmodule gobject gthread; do
+#  install_name_tool \
+#    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
+#    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
+#done
 
 #
 # Install CMake
@@ -862,11 +860,11 @@ build_and_install_setup_py \
     ${CKSUM}
 
   # Required to prevent linker errors down the line..
-  for i in orc; do
-    install_name_tool \
-      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
-      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
-  done
+#  for i in orc; do
+#    install_name_tool \
+#      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
+#      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
+#  done
 
 #
 # Install Cheetah
