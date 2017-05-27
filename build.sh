@@ -2023,6 +2023,13 @@ I created Info.plist
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
 
+I ============================================================================
+I fixing .dylibs and .so files in ${INSTALL_DIR}
+I ============================================================================
+INSTALL_DIR=${INSTALL_DIR} \
+  sh ${BUILD_DIR}/scripts/fix-broken-dylibs.sh \
+  || die "fix-broken-dylibs.sh failed"
+
 #
 # Create .dmg file
 #
@@ -2081,12 +2088,5 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
-
-I ============================================================================
-I fixing .dylibs and .so files in ${INSTALL_DIR}
-I ============================================================================
-INSTALL_DIR=${INSTALL_DIR} \
-  sh ${BUILD_DIR}/scripts/fix-broken-dylibs.sh \
-  || die "fix-broken-dylibs.sh failed"
 
 I '!!!!!! DONE !!!!!!'

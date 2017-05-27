@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DEBUG=1
+DEBUG=0
 
 DYLIB_EXTS="dylib so"
 
@@ -68,6 +68,7 @@ function change_dylib_dep() {
 function change_dylib_id() {
   local dylib="$1"
   local id="$2"
+  D install_name_tool -id ${id} ${dylib}
   install_name_tool -id ${id} ${dylib} \
     || die "command failed: install_name_tool -id ${id} ${dylib}"
 }
@@ -207,7 +208,11 @@ function progress() {
   for ((i=0; i < twidth - front - back - prog; i++)); do
     printf "-"
   done
-  /bin/echo "|"
+  if [ "" = "$DEBUG" ]; then
+    /bin/echo "|"
+  else
+    /bin/echo -n "|"
+  fi
 }
 
 function scanlibs() {
