@@ -662,14 +662,6 @@ for i in gio glib gmodule gobject gthread; do
 done
 
 
-# Required to prevent linker errors down the line..
-for i in gio glib gmodule gobject gthread; do
-  install_name_tool \
-    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
-    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
-done
-
-
 
 #
 # Install CMake
@@ -876,13 +868,6 @@ build_and_install_setup_py \
       ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
   done
 
-  # Required to prevent linker errors down the line..
-  for i in orc; do
-    install_name_tool \
-      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
-      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
-  done
-
 #
 # Install Cheetah
 # 
@@ -948,7 +933,6 @@ unset SKIP_LIBTOOLIZE
 # 
 
 # XXX: @CF: issue 13. This is already provided by XQuartz and rebuilding it here just produces dylib compatibility issues
-
 #P=libpng-1.6.28
 #URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
 #CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
@@ -957,6 +941,7 @@ unset SKIP_LIBTOOLIZE
 #  ${P} \
 #  ${URL} \
 #  ${CKSUM}
+
 
 #
 # Install jpeg
@@ -1778,9 +1763,6 @@ build_and_install_autotools \
   ${URL} \
   ${CKSUM} \
   ${T}
-
-# had to manually correct the dylib version for uhd
-# install_name_tool -change /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.010.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/python2.7/site-packages/osmosdr/_osmosdr_swig.so
 
 #
 # Install libhackrf
