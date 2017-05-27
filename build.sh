@@ -1900,6 +1900,12 @@ if [ 1 -eq 1 ]; then
 PYTHON=${PYTHON}
 APP_DIR=\${APP_DIR:-/Applications/GNURadio.app}
 INSTALL_DIR=\${APP_DIR}/Contents/MacOS
+
+if [ ! -f "\${INSTALL_DIR}"/usr/bin/${PYTHON} ]; then
+  cp \$(which ${PYTHON}) "\${INSTALL_DIR}"/usr/bin
+  install_name_tool -add_rpath "\${INSTALL_DIR}"/usr/bin
+fi
+
 ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
 PYTHONPATH=\${ULPP}:\${PYTHONPATH}
 GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
