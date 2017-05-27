@@ -662,6 +662,14 @@ for i in gio glib gmodule gobject gthread; do
 done
 
 
+# Required to prevent linker errors down the line..
+for i in gio glib gmodule gobject gthread; do
+  install_name_tool \
+    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
+    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
+done
+
+
 
 #
 # Install CMake
@@ -868,6 +876,13 @@ build_and_install_setup_py \
       ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
   done
 
+  # Required to prevent linker errors down the line..
+  for i in orc; do
+    install_name_tool \
+      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
+      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
+  done
+
 #
 # Install Cheetah
 # 
@@ -942,7 +957,6 @@ unset SKIP_LIBTOOLIZE
 #  ${P} \
 #  ${URL} \
 #  ${CKSUM}
-
 
 #
 # Install jpeg
