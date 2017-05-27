@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# deprecated
+
 DEBUG=1
 
 function D() {
