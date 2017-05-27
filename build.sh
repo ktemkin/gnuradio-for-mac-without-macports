@@ -1728,6 +1728,12 @@ if [ 1 -eq 1 ]; then
 PYTHON=${PYTHON}
 APP_DIR=\${APP_DIR:-/Applications/GNURadio.app}
 INSTALL_DIR=\${APP_DIR}/Contents/MacOS
+
+if [ ! -f "\${INSTALL_DIR}"/usr/bin/${PYTHON} ]; then
+  cp \$(which ${PYTHON}) "\${INSTALL_DIR}"/usr/bin
+  install_name_tool -add_rpath "\${INSTALL_DIR}"/usr/bin
+fi
+
 ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
 PYTHONPATH=\${ULPP}:\${PYTHONPATH}
 GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
@@ -1901,7 +1907,8 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 I ============================================================================
 I fixing .dylibs and .so files in ${INSTALL_DIR}
 I ============================================================================
-INSTALL_DIR=${INSTALL_DIR} sh ${BUILD_DIR}/scripts/fix-broken-dylibs.sh
-I ============================================================================
+INSTALL_DIR=${INSTALL_DIR} \
+  sh ${BUILD_DIR}/scripts/fix-broken-dylibs.sh \
+  || die "fix-broken-dylibs.sh failed"
 
 I '!!!!!! DONE !!!!!!'
