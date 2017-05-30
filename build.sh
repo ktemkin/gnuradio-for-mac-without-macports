@@ -98,12 +98,61 @@ function ncpus() {
   sysctl -n hw.ncpu
 }
 
+function verify_sha256() {
+  #local FILENAME="${1}"
+  #local CKSUM="${2}"
+  test "$(shasum -a 256 -- "${1}" | cut -d' ' -f1)" = "${2}" \
+    && D "File '${1}' matches '${2}'" \
+    || E "File '${1}' does not match '${2}'"
+}
+
+function verify_git() {
+  #local FILENAME="${1}"
+  #local CKSUM="${2}"
+  # Verify the hash refers to a commit.
+  #    http://stackoverflow.com/questions/18515488/how-to-check-if-the-commit-exists-in-a-git-repository-by-its-sha-1
+  test "$( git -C "${1}" cat-file -t "${2}" 2>/dev/null )" = commit \
+    || E "Repository '${1}' does not match '${2}'"
+  # Then verify the hash is in the current branch.  (The branch may have newer commits.)
+  #    http://stackoverflow.com/questions/4127967/validate-if-commit-exists
+  test "$( git -C "${1}" rev-list HEAD.."${2}" | wc -l )" -eq 0 \
+    || E "Repository '${1}' does not match '${2}'"
+}
+
+function verify_checksum() {
+  #local FILENAME="${1}"
+  #local CKSUM="${2}"
+  test -e "${1}" || E "Missing: '${1}'"
+  if [ -z "${2}" ]; then
+    # Nag someone to get a checksum for this thing.
+    I "No checksum: '${1}'"
+    return 0
+  fi
+  # CKSUM is in the form of "format:data"
+  # (We allow additional colons in data for future whatever, format:data0:data1:...)
+  # Check the leading "format:" portion
+  case "${2%%:*}" in
+    "sha256")
+      # Remove leading "sha256:", and invoke the correct function:
+      verify_sha256 "${1}" "${2#*:}"
+      ;;
+    "git")
+      # Remove leading "git:", and invoke the correct function:
+      verify_git "${1}" "${2#*:}"
+      ;;
+    *)
+      E "Unrecognized checksum format: ${2}"
+      ;;
+  esac
+}
+
 # XXX: @CF: use hash-checking for compressed archives
 function fetch() {
   local P=${1}
   local URL=${2}
   local T=${3}
   local BRANCH=${4}
+  local CKSUM=${5}
 
   I "fetching ${P} from ${URL}"
 
@@ -111,6 +160,7 @@ function fetch() {
     D "downloading to ${TMP_DIR}/${T}"
     if [ -d ${TMP_DIR}/${T} ]; then
       D "already downloaded ${P}"
+      verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
       return
     fi
     git clone ${URL} ${TMP_DIR}/${T} \
@@ -120,6 +170,7 @@ function fetch() {
         && git checkout -b local-${BRANCH} ${BRANCH} \
         || ( rm -Rf ${TMP_DIR}/${T}; E "failed to checkout ${BRANCH}" )
     fi
+    verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
   else
     if [ "" != "${SKIP_FETCH}" ]; then
       local Z=
@@ -128,6 +179,7 @@ function fetch() {
         if [ -f ${TMP_DIR}/${P}.${zz} ]; then
           Z=${P}.${zz}
           D "already downloaded ${Z}"
+          verify_checksum "${TMP_DIR}/${Z}" "${CKSUM}"
           return
         fi
       done
@@ -135,6 +187,7 @@ function fetch() {
     cd ${TMP_DIR} \
     && curl -L --insecure -k -O ${URL} \
       || E "failed to download from ${URL}"
+    verify_checksum "${URL##*/}" "${CKSUM}"
   fi
 }
 
@@ -225,8 +278,9 @@ function build_and_install_cmake() {
 
   local P=${1}
   local URL=${2}
-  local T=${3}
-  local BRANCH=${4}
+  local CKSUM=${3}
+  local T=${4}
+  local BRANCH=${5}
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -235,7 +289,7 @@ function build_and_install_cmake() {
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I "already installed ${P}"    
   else 
-    fetch ${P} ${URL} ${T} ${BRANCH}
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T} ${BRANCH}
   
     rm -Rf ${TMP_DIR}/${T}-build \
@@ -257,8 +311,9 @@ function build_and_install_setup_py() {
 
   local P=${1}
   local URL=${2}
-  local T=${3}
-  local BRANCH=${4}
+  local CKSUM=${3}
+  local T=${4}
+  local BRANCH=${5}
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -268,7 +323,7 @@ function build_and_install_setup_py() {
     I "already installed ${P}"    
   else 
   
-    fetch ${P} ${URL} ${T} ${BRANCH}
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T}
   
     if [ ! -d ${PYTHONPATH} ]; then
@@ -293,9 +348,10 @@ function build_and_install_autotools() {
 
   local P=${1}
   local URL=${2}
-  local T=${3}
-  local BRANCH=${4}
-  local CONFIGURE_CMD=${5}
+  local CKSUM=${3}
+  local T=${4}
+  local BRANCH=${5}
+  local CONFIGURE_CMD=${6}
   
   if [ "" = "${CONFIGURE_CMD}" ]; then
     CONFIGURE_CMD="./configure --prefix=${INSTALL_DIR}/usr"
@@ -309,17 +365,17 @@ function build_and_install_autotools() {
     I "already installed ${P}"
   else 
   
-    fetch ${P} ${URL} ${T} ${BRANCH}
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T}
   
-    if [[ "" = "${SKIP_AUTORECONF}" && "" != "$(which autoreconf)" || ! -f ${TMP_DIR}/${T}/configure ]]; then
+    if [[ "" = "${SKIP_AUTORECONF}" || "" = "$(which autoreconf)" || ! -f ${TMP_DIR}/${T}/configure ]]; then
       I "Running autoreconf in ${T}"
       cd ${TMP_DIR}/${T} \
         && autoreconf -if  \
         || E "autoreconf failed for ${P}"
     fi
   
-    if [[ "" = "${SKIP_LIBTOOLIZE}" && "" != "$(which libtoolize)" ]]; then
+    if [[ "" = "${SKIP_LIBTOOLIZE}" || "" = "$(which libtoolize)" ]]; then
       I "Running libtoolize in ${T}"
       cd ${TMP_DIR}/${T} \
         && libtoolize -if \
@@ -348,8 +404,9 @@ function build_and_install_qmake() {
 
   local P=${1}
   local URL=${2}
-  local T=${3}
-  local BRANCH=${4}
+  local CKSUM=${3}
+  local T=${4}
+  local BRANCH=${5}
   
   if [ "" = "${T}" ]; then
     T=${P}
@@ -359,7 +416,7 @@ function build_and_install_qmake() {
     I "already installed ${P}"
   else 
   
-    fetch ${P} ${URL} ${T} ${BRANCH}
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T} ${BRANCH}
   
     I "Configuring and building in ${T}"
@@ -424,7 +481,7 @@ function build_and_install_qmake() {
 # misc
 # 
 
-MAKE="make -j$(ncpus)"
+MAKE="${MAKE:-"make -j$(ncpus)"}"
 PYTHON=python2.7
 export PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages
 
@@ -493,12 +550,14 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
 
 P=autoconf-2.69
 URL=http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
+CKSUM=sha256:954bd69b391edc12d6a4a51a2dd1476543da5c6bbf05a95b59dc0dd6fd4c2969
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install automake
@@ -506,12 +565,14 @@ URL=http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz
 
 P=automake-1.15
 URL=http://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz
+CKSUM=sha256:7946e945a96e28152ba5a6beb0625ca715c6e32ac55f2e353ef54def0c8ed924
 
 SKIP_AUTORECONF=yes \
 SKIP_LIBTOOLIZE=yes \
 build_and_install_autotools \
   ${P} \
-  ${URL}
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install libtool
@@ -519,12 +580,14 @@ build_and_install_autotools \
 
   P=libtool-2.4
   URL=http://mirror.frgl.pw/gnu/libtool/libtool-2.4.tar.xz
+  CKSUM=sha256:afcce660d3dc54c63a0a5ba3cf05272239dc3c54bbeba20f6bad250f9dc007ae
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 if [ -f ${INSTALL_DIR}/usr/bin/libtool ]; then
   
@@ -543,10 +606,12 @@ fi
 
   P=gettext-0.19.8
   URL=http://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.tar.xz
+  CKSUM=sha256:9c1781328238caa1685d7bc7a2e1dcf1c6c134e86b42ed554066734b621bd12f
     
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install xz-utils
@@ -554,10 +619,12 @@ fi
 
 P=xz-5.2.3
 URL=https://tukaani.org/xz/xz-5.2.3.tar.bz2
+CKSUM=sha256:fd9ca16de1052aac899ad3495ad20dfa906c27b4a5070102a2ec35ca3a4740c1
 
 build_and_install_autotools \
   ${P} \
-  ${URL}
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install GNU tar
@@ -565,11 +632,13 @@ build_and_install_autotools \
 
 P=tar-1.29
 URL=http://ftp.gnu.org/gnu/tar/tar-1.29.tar.bz2
+CKSUM=sha256:236b11190c0a3a6885bdb8d61424f2b36a5872869aa3f7f695dea4b4843ae2f2
 
 EXTRA_OPTS="--with-lzma=`which xz`"
 build_and_install_autotools \
   ${P} \
-  ${URL}
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install pkg-config
@@ -577,20 +646,20 @@ build_and_install_autotools \
 
 P=pkg-config-0.29.1
 URL=https://pkg-config.freedesktop.org/releases/pkg-config-0.29.1.tar.gz
+CKSUM=sha256:beb43c9e064555469bd4390dcfd8030b1536e0aa103f08d7abf7ae8cac0cb001
 
 EXTRA_OPTS="--with-internal-glib" \
 build_and_install_autotools \
   ${P} \
-  ${URL}
+  ${URL} \
+  ${CKSUM}
 
 # Required to prevent linker errors down the line..
-for i in gio glib gmodule gobject gthread; do
-  install_name_tool \
-    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
-    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
-done
-
-
+#for i in gio glib gmodule gobject gthread; do
+#  install_name_tool \
+#    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
+#    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
+#done
 
 #
 # Install CMake
@@ -598,11 +667,12 @@ done
 
 P=cmake-3.7.2
 URL=http://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
+CKSUM=sha256:dc1246c4e6d168ea4d6e042cfba577c1acd65feea27e56f5ff37df920c30cae0
 T=${P}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
- fetch ${P} ${URL}
+ fetch "${P}" "${URL}" "" "" "${CKSUM}"
  unpack ${P} ${URL}
 
  cd ${TMP_DIR}/${T} \
@@ -624,11 +694,12 @@ fi
 
   P=boost_1_63_0
   URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/boost_1_63_0.tar.bz2
+  CKSUM=sha256:beae2529f759f6b3bf3f4969a19c2e9d6f0c503edcb2de4a61d1428519fcb3b0
   T=${P}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} 
+  fetch "${P}" "${URL}" "" "" "${CKSUM}"
   unpack ${P} ${URL}
 
   cd ${TMP_DIR}/${T} \
@@ -648,11 +719,13 @@ fi
 
   P=pcre-8.40
   URL=http://pilotfiber.dl.sourceforge.net/project/pcre/pcre/8.40/pcre-8.40.tar.gz
+  CKSUM=sha256:1d75ce90ea3f81ee080cdc04e68c9c25a9fb984861a0618be7bbf676b18eda3e
 
   EXTRA_OPTS="--enable-utf" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install Swig
@@ -660,12 +733,14 @@ fi
 
 P=swig-3.0.12
 URL=http://pilotfiber.dl.sourceforge.net/project/swig/swig/${P}/${P}.tar.gz
+CKSUM=sha256:7cf9f447ae7ed1c51722efc45e7f14418d15d7a1e143ac9f09a668999f4fc94d
 
 SKIP_AUTORECONF=yes \
 SKIP_LIBTOOLIZE=yes \
 build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install ffi
@@ -673,10 +748,12 @@ build_and_install_autotools \
 
 P=libffi-3.2.1
 URL=ftp://sourceware.org/pub/libffi/libffi-3.2.1.tar.gz
+CKSUM=sha256:d06ebb8e1d9a22d19e38d63fdb83954253f39bedc5d46232a05645685722ca37
 
 build_and_install_autotools \
   ${P} \
-  ${URL}
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install glib
@@ -684,6 +761,7 @@ build_and_install_autotools \
 
 P=glib-2.51.1
 URL='http://gensho.acc.umu.se/pub/gnome/sources/glib/2.51/glib-2.51.1.tar.xz'
+CKSUM=sha256:1f8e40cde43ac0bcf61defb147326d038310d75d4e50f728f6becfd2a36ac0ac
     
 # mac os x linker seems to grab the /usr/lib version of libpcre rather than ${INSTALL_DIR}/usr/lib
 # hopefully this is just a glib bug and not a systematic failure with
@@ -694,7 +772,8 @@ SKIP_LIBTOOLIZE=yes \
 EXTRA_OPTS="--with-pcre=internal" \
 build_and_install_autotools \
   ${P} \
-  ${URL}
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install cppunit
@@ -702,10 +781,12 @@ build_and_install_autotools \
 
   P=cppunit-1.12.1
   URL='http://iweb.dl.sourceforge.net/project/cppunit/cppunit/1.12.1/cppunit-1.12.1.tar.gz'
+  CKSUM=sha256:ac28a04c8e6c9217d910b0ae7122832d28d9917fa668bcc9e0b8b09acb4ea44a
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install mako
@@ -713,11 +794,13 @@ build_and_install_autotools \
 
   P=Mako-1.0.3
   URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
+  CKSUM=sha256:7644bc0ee35965d2e146dde31827b8982ed70a58281085fac42869a09764d38c
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 build_and_install_setup_py \
    ${P} \
-   ${URL}
+   ${URL} \
+   ${CKSUM}
 
 #
 # Install bison
@@ -725,55 +808,63 @@ build_and_install_setup_py \
 
     P=bison-3.0.4
     URL='http://ftp.gnu.org/gnu/bison/bison-3.0.4.tar.xz'
+    CKSUM=sha256:a72428c7917bdf9fa93cb8181c971b6e22834125848cf1d03ce10b1bb0716fe1
 
   SKIP_AUTORECONF=yes \
   build_and_install_autotools \
    ${P} \
-   ${URL}
+   ${URL} \
+   ${CKSUM}
 
 #
 # Install OpenSSL
 # 
     P=openssl-1.1.0d
     URL='https://www.openssl.org/source/openssl-1.1.0d.tar.gz'
+    CKSUM=sha256:7d5ebb9e89756545c156ff9c13cf2aa6214193b010a468a3bc789c3c28fe60df
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
   EXTRA_OPTS="darwin64-x86_64-cc" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install thrift
 # 
     P=thrift-0.10.0
     URL='http://apache.mirror.gtcomm.net/thrift/0.10.0/thrift-0.10.0.tar.gz'
+    CKSUM=sha256:2289d02de6e8db04cbbabb921aeb62bfe3098c4c83f36eec6c31194301efa10b
 
   PY_PREFIX="${INSTALL_DIR}/usr" \
   CXXFLAGS="${CPPFLAGS}" \
   EXTRA_OPTS="--without-perl --without-php" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install orc
 # 
 
-    P=orc-0.4.26 \
+    P=orc-0.4.26
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/orc-0.4.26.tar.xz'
+    CKSUM=sha256:7d52fa80ef84988359c3434e1eea302d077a08987abdde6905678ebcad4fa649
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
   # Required to prevent linker errors down the line..
-  for i in orc; do
-    install_name_tool \
-      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
-      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
-  done
+#  for i in orc; do
+#    install_name_tool \
+#      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
+#      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
+#  done
 
 #
 # Install Cheetah
@@ -781,11 +872,13 @@ build_and_install_setup_py \
 
     P=Cheetah-2.4.4
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Cheetah-2.4.4.tar.gz'
+    CKSUM=sha256:be308229f0c1e5e5af4f27d7ee06d90bb19e6af3059794e5fd536a6f29a9b550
 
   LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_setup_py \
     ${P} \
     ${URL} \
+    ${CKSUM} \
   && ln -sf ${PYTHONPATH}/${P}-py2.7.egg ${PYTHONPATH}/Cheetah.egg
 
 #
@@ -794,11 +887,13 @@ build_and_install_setup_py \
 
     P=lxml-3.7.3
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/lxml-3.7.3.tar.gz'
+    CKSUM=sha256:aa502d78a51ee7d127b4824ff96500f0181d3c7826e6ee7b800d068be79361c7
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_setup_py \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install pygobject-introspection
@@ -806,10 +901,12 @@ LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 
     P=gobject-introspection-1.40.0
     URL='http://ftp.gnome.org/pub/gnome/sources/gobject-introspection/1.40/gobject-introspection-1.40.0.tar.xz'
+    CKSUM=sha256:96ea75e9679083e7fe39a105e810e2ead2d708abf189a5ba420bfccfffa24e98
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install libtiff
@@ -817,12 +914,14 @@ LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 
 P=tiff-3.8.2
 URL='http://dl.maptools.org/dl/libtiff/tiff-3.8.2.tar.gz'
+CKSUM=sha256:be88f037080b93ce0a337b2b3ca5e8195f76885deb6c558cc3aa872ee848fc76
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 unset SKIP_AUTORECONF
 unset SKIP_LIBTOOLIZE
@@ -834,10 +933,13 @@ unset SKIP_LIBTOOLIZE
 # XXX: @CF: issue 13. This is already provided by XQuartz and rebuilding it here just produces dylib compatibility issues
 #P=libpng-1.6.28
 #URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
+#CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
 
 #build_and_install_autotools \
 #  ${P} \
-#  ${URL}
+#  ${URL} \
+#  ${CKSUM}
+
 
 #
 # Install jpeg
@@ -845,6 +947,7 @@ unset SKIP_LIBTOOLIZE
 
 P=jpegsrc.v6b
 URL=http://mirror.csclub.uwaterloo.ca/slackware/slackware-8.1/source/ap/ghostscript/jpegsrc.v6b.tar.gz
+CKSUM=sha256:75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d
 T=jpeg-6b
 
   SKIP_AUTORECONF=yes \
@@ -853,6 +956,7 @@ T=jpeg-6b
   build_and_install_autotools \
     ${P} \
     ${URL} \
+    ${CKSUM} \
     ${T}
 
 
@@ -862,10 +966,12 @@ T=jpeg-6b
 
     P='pixman-0.34.0'
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/pixman-0.34.0.tar.bz2'
+    CKSUM=sha256:39ba3438f3d17c464b0cb8be006dacbca0ab5aee97ebde69fec7ecdbf85794a0
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install freetype
@@ -873,12 +979,14 @@ T=jpeg-6b
 
     P=freetype-2.7
     URL='http://mirror.csclub.uwaterloo.ca/nongnu//freetype/freetype-2.7.tar.gz'
+    CKSUM=sha256:7b657d5f872b0ab56461f3bd310bd1c5ec64619bd15f0d8e08282d494d9cfea4
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 
 #
@@ -887,10 +995,12 @@ T=jpeg-6b
 
   P=harfbuzz-1.4.3
   URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/harfbuzz-1.4.3.tar.bz2'
+  CKSUM=sha256:838c17400a88a3a451eb401573ef94cdd50919730d98255547c459fef1d85321
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install fontconfig
@@ -898,10 +1008,12 @@ T=jpeg-6b
 
   P=fontconfig-2.12.1
   URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/fontconfig-2.12.1.tar.bz2'
+  CKSUM=sha256:b449a3e10c47e1d1c7a6ec6e2016cca73d3bd68fbbd4f0ae5cc6b573f7d6c7f3
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install cairo
@@ -909,10 +1021,12 @@ T=jpeg-6b
 
     P=cairo-1.14.8
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/cairo-1.14.8.tar.xz'
+    CKSUM=sha256:d1f2d98ae9a4111564f6de4e013d639cf77155baf2556582295a0f00a9bc5e20
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install pycairo
@@ -920,21 +1034,25 @@ T=jpeg-6b
 
     P=py2cairo-1.10.0
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/py2cairo-1.10.0.tar.bz2'
+    CKSUM=sha256:d30439f06c2ec1a39e27464c6c828b6eface3b22ee17b2de05dc409e429a7431
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install pygobject
 # 
 
-    P=pygobject-2.28.6 \
+    P=pygobject-2.28.6
     URL='http://ftp.gnome.org/pub/GNOME/sources/pygobject/2.28/pygobject-2.28.6.tar.xz'
+    CKSUM=sha256:fb8a1d4f665130a125011659bd347c7339c944232163dbb9a34fd0686577adb8
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install gdk-pixbuf
@@ -942,11 +1060,13 @@ T=jpeg-6b
 
   P=gdk-pixbuf-2.36.4
   URL='http://muug.ca/mirror/gnome/sources/gdk-pixbuf/2.36/gdk-pixbuf-2.36.4.tar.xz'
+  CKSUM=sha256:0b19901c3eb0596141d2d48ddb9dac79ad1524bdf59366af58ab38fcb9ee7463
 
   EXTRA_OPTS="--without-libtiff --without-libjpeg" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install libatk
@@ -954,10 +1074,12 @@ T=jpeg-6b
 
   P=ATK_2_22
   URL='http://git.gnome.org/browse/atk/snapshot/ATK_2_22.tar.xz'
+  CKSUM=sha256:27d4dc33283787e77935ac725aaf4d1bd283feb18898072bfecf61183b71a1b9
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install pango
@@ -973,20 +1095,24 @@ T=jpeg-6b
 
   P=pango-1.39.0
   URL='http://ftp.gnome.org/pub/GNOME/sources/pango/1.39/pango-1.39.0.tar.xz'
+  CKSUM=sha256:13072ad9e49372d6d7ba7bb3b9b025faef04de3552b745e92d7880eb15d6ee7e
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install gtk+
 # 
   P=gtk+-2.24.31
   URL='http://gemmei.acc.umu.se/pub/gnome/sources/gtk+/2.24/gtk+-2.24.31.tar.xz'
+  CKSUM=sha256:68c1922732c7efc08df4656a5366dcc3afdc8791513400dac276009b40954658
 
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install pygtk
@@ -994,10 +1120,12 @@ T=jpeg-6b
 
     P=pygtk-2.24.0
     URL='http://ftp.gnome.org/pub/GNOME/sources/pygtk/2.24/pygtk-2.24.0.tar.gz'
+    CKSUM=sha256:6e3e54fa6e65a69ac60bd58cb2e60a57f3346ac52efe995f3d10b6c38c972fd8
 
 build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
   #ln -sf ${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages/{py,}gtk.py
 
@@ -1007,10 +1135,12 @@ build_and_install_autotools \
 
   P=numpy-1.11.1
   URL='http://superb-sea2.dl.sourceforge.net/project/numpy/NumPy/1.11.1/numpy-1.11.1.tar.gz'
+  CKSUM=sha256:dc4082c43979cc856a2bf352a8297ea109ccb3244d783ae067eb2ee5b0d577cd
 
   build_and_install_setup_py \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install fftw
@@ -1018,11 +1148,13 @@ build_and_install_autotools \
 
   P=fftw-3.3.6-pl1
   URL='http://www.fftw.org/fftw-3.3.6-pl1.tar.gz'
+  CKSUM=sha256:1ef4aa8427d9785839bc767f3eb6a84fcb5e9a37c31ed77a04e7e047519a183d
 
   EXTRA_OPTS="--enable-single --enable-sse --enable-sse2 --enable-avx --enable-avx2 --enable-avx-128-fma --enable-generic-simd128 --enable-generic-simd256 --enable-threads" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install f2c
@@ -1030,12 +1162,13 @@ build_and_install_autotools \
 
 P=f2c
 URL=http://github.com/barak/f2c.git
+CKSUM=git:fa8ccce5c4ab11d08b875379c5f0629098261f32
 T=${P}
 BRANCH=master
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   cd ${TMP_DIR}/${T}/src \
@@ -1046,7 +1179,7 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
   && I installing f2c \
   && cp f2c ${INSTALL_DIR}/usr/bin \
   && cp f2c.h ${INSTALL_DIR}/usr/include \
-  && cp ${BUILD_DIR}/scripts/gfortran-wrapper.sh ${INSTALL_DIR}/usr/bin/gfortran \
+  && sed -e 's,^\([[:space:]]*CFLAGS[[:space:]]*=\).*$,\1"-I'"${INSTALL_DIR}"'/usr/include",' < "${BUILD_DIR}/scripts/gfortran-wrapper.sh" > "${INSTALL_DIR}/usr/bin/gfortran" \
   && chmod +x ${INSTALL_DIR}/usr/bin/gfortran \
     || E "failed to build and install f2c"  
 
@@ -1059,12 +1192,13 @@ fi
 
 P=libf2c-20130927
 URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libf2c-20130927.zip
+CKSUM=sha256:5dff29c58b428fa00cd36b1220e2d71b9882a658fdec1aa094fb7e6e482d6765
 T=${P}
 BRANCH=""
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   
   rm -Rf ${TMP_DIR}/${T} \
   && mkdir -p ${TMP_DIR}/${T} \
@@ -1103,12 +1237,13 @@ fi
 
 P=blas-3.7.0
 URL=http://www.netlib.org/blas/blas-3.7.0.tgz
+CKSUM=sha256:55415f901bfc9afc19d7bd7cb246a559a748fc737353125fcce4c40c3dee1d86
 T=BLAS-3.7.0
 BRANCH=""
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   cd ${TMP_DIR}/${T}/ \
@@ -1151,12 +1286,13 @@ fi
 # XXX: @CF: requires either f2c or gfortran, both of which I don't care for right now
   P=cblas
   URL='http://www.netlib.org/blas/blast-forum/cblas.tgz'
+  CKSUM=sha256:0f6354fd67fabd909baf57ced2ef84e962db58fae126e4f41b21dd4fec60a2a3
   T=CBLAS
   BRANCH=""
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
 
   cd ${TMP_DIR}/${T}/src \
@@ -1209,12 +1345,14 @@ fi
 
   P=gsl-2.3
   URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
+  CKSUM=sha256:562500b789cd599b3a4f88547a7a3280538ab2ff4939504c8b4ac4ca25feadfb
 
   LDFLAGS="${LDFLAGS} -lcblas -lblas -lf2c" \
   EXTRA_OPTS="" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install libusb
@@ -1222,11 +1360,13 @@ fi
 
   P=libusb-1.0.21
   URL='http://fco.it.distfiles.macports.org/mirrors/macports-distfiles/libusb/libusb-1.0.21.tar.gz'
+  CKSUM=sha256:acb5ca3379cecf7bf53901b8e98192723909f696af04bd63fca0cfafec5b057c
   T=libusb-libusb-09e75e9
 
   build_and_install_autotools \
     ${P} \
     ${URL} \
+    ${CKSUM} \
     ${T}
 
 #
@@ -1235,6 +1375,7 @@ fi
 
   P=uhd
   URL=git://github.com/EttusResearch/uhd.git
+  CKSUM=git:c705922a08e32c8b0ec7ef6af6137835f87b2f42
   T=${P}
   BRANCH=release_003_010_001_001
 
@@ -1242,6 +1383,7 @@ fi
   build_and_install_cmake \
     ${P} \
     ${URL} \
+    ${CKSUM} \
     ${T} \
     ${BRANCH}
 
@@ -1254,7 +1396,8 @@ fi
 
 #build_and_install_autotools \
 #  SDL2-2.0.5 \
-#  'http://www.libsdl.org/release/SDL2-2.0.5.tar.gz'
+#  'http://www.libsdl.org/release/SDL2-2.0.5.tar.gz' \
+#  sha256:442038cf55965969f2ff06d976031813de643af9c9edc9e331bd761c242e8785
 
 #fi
 
@@ -1264,12 +1407,14 @@ fi
 
   P=libzmq
   URL=git://github.com/zeromq/libzmq.git
+  CKSUM=git:d17581929cceceda02b4eb8abb054f996865c7a6
   T=${P}
 
   EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}" \
   build_and_install_cmake \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # Install cppzmq
@@ -1277,6 +1422,7 @@ fi
 
   P=cppzmq
   URL=git://github.com/zeromq/cppzmq.git
+  CKSUM=git:178a910ae1abaad59467ee38884289b8a29c5710
   T=${P}
   BRANCH=v4.2.1
 
@@ -1284,6 +1430,7 @@ fi
   build_and_install_cmake \
     ${P} \
     ${URL} \
+    ${CKSUM} \
     ${T} \
     ${BRANCH}
 
@@ -1294,6 +1441,7 @@ fi
 
 P=wxWidgets-3.0.2
 URL='http://pkgs.fedoraproject.org/repo/pkgs/wxGTK3/wxWidgets-3.0.2.tar.bz2/md5/ba4cd1f3853d0cd49134c5ae028ad080/wxWidgets-3.0.2.tar.bz2'
+CKSUM=sha256:346879dc554f3ab8d6da2704f651ecb504a22e9d31c17ef5449b129ed711585d
 T=${P}
 
   SKIP_AUTORECONF=yes \
@@ -1301,7 +1449,8 @@ T=${P}
   EXTRA_OPTS="--with-gtk --enable-utf8only" \
   build_and_install_autotools \
     ${P} \
-    ${URL}
+    ${URL} \
+    ${CKSUM}
 
 #
 # install wxpython
@@ -1309,6 +1458,7 @@ T=${P}
 
   P=wxPython-src-3.0.2.0
   URL=http://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
+  CKSUM=sha256:d54129e5fbea4fb8091c87b2980760b72c22a386cb3b9dd2eebc928ef5e8df61
   T=${P}
   BRANCH=""
 
@@ -1316,7 +1466,7 @@ T=${P}
     I "already installed ${P}"    
   else 
 
-  fetch ${P} ${URL} ${T}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T}
 
   _extra_cflags="$(pkg-config --cflags gtk+-2.0) $(pkg-config --cflags libgdk-x11) $(pkg-config --cflags x11)"
@@ -1355,6 +1505,7 @@ fi
 
   P=rtl-sdr
   URL=git://git.osmocom.org/rtl-sdr
+  CKSUM=git:df9596b2d1ebd36cdb14549cfdd76c25092e14d0
   T=${P}
   BRANCH=v0.5.3
 
@@ -1362,6 +1513,7 @@ fi
   build_and_install_autotools \
     ${P} \
     ${URL} \
+    ${CKSUM} \
     ${T} \
     ${BRANCH}
 
@@ -1371,6 +1523,7 @@ fi
 
 P=qt-x11-opensource-src-4.4.3
 URL=http://mirror.csclub.uwaterloo.ca/qtproject/archive/qt/4.4/qt-x11-opensource-src-4.4.3.tar.gz
+CKSUM=sha256:79ea9fb46d75c3759e3e98ab0064a47eaa5bdbbc2a53d923d60bd8e9cd0bc5c6
 T=${P}
 BRANCH=""
 
@@ -1381,7 +1534,7 @@ else
   rm -Rf ${INSTALL_DIR}/usr/lib/libQt*
   rm -Rf ${INSTALL_DIR}/usr/include/Qt*
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   I configuring ${P} \
@@ -1462,6 +1615,7 @@ fi
 
 P=qwt-6.1.3
 URL=http://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
+CKSUM=sha256:f3ecd34e72a9a2b08422fb6c8e909ca76f4ce5fa77acad7a2883b701f4309733
 T=${P}
 BRANCH=""
 
@@ -1472,6 +1626,7 @@ EXTRA_OPTS="qwt.pro" \
 build_and_install_qmake \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T} \
   ${BRANCH}
 
@@ -1481,13 +1636,14 @@ build_and_install_qmake \
 
 P=sip-4.19.1
 URL=http://svwh.dl.sourceforge.net/project/pyqt/sip/sip-4.19.1/sip-4.19.1.tar.gz
+CKSUM=sha256:501852b8325349031b769d1c03d6eab04f7b9b97f790ec79f3d3d04bf065d83e
 T=${P}
 BRANCH=""
 
 if [ -f ${TMP_DIR}/.${P}.done ]; then
   I already installed ${P}
 else
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   cd ${TMP_DIR}/${T} \
@@ -1511,13 +1667,14 @@ fi
 
 P=PyQt4_gpl_x11-4.12
 URL=http://superb-sea2.dl.sourceforge.net/project/pyqt/PyQt4/PyQt-4.12/PyQt4_gpl_x11-4.12.tar.gz
+CKSUM=sha256:3c1d4b55314adb3e1132de8fc2a92eed216d37e58aceed41294dbca210ca88db
 T=${P}
 BRANCH=""
 
 if [ -f ${TMP_DIR}/.${P}.done ]; then
   I already installed ${P}
 else
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   cd ${TMP_DIR}/${T} \
@@ -1543,17 +1700,18 @@ fi
 
 P=gnuradio
 URL=git://github.com/gnuradio/gnuradio.git
+CKSUM=git:59daaff0d9d04373d3a6b14ea7b46e080bad7a1e
 T=${P}
 BRANCH=v${GNURADIO_BRANCH}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   rm -Rf ${TMP_DIR}/${T}/volk
   
-  fetch volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
+  fetch volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3 git:4465f9b26354e555e583a7d654710cb63cf914ce
   unpack volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
 
 EXTRA_OPTS="\
@@ -1572,6 +1730,7 @@ EXTRA_OPTS="\
 build_and_install_cmake \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T} \
   ${BRANCH}
 #&& \
@@ -1593,16 +1752,15 @@ fi
 
 P=osmo-sdr-0.1
 URL=http://cgit.osmocom.org/osmo-sdr/snapshot/osmo-sdr-0.1.tar.xz
+CKSUM=sha256:ac488768ad735dd6ca0ba594643f831e2b62747244da9a233264c11a96bc1f96
 T=${P}/software/libosmosdr
 
 EXTRA_OPTS="" \
 build_and_install_autotools \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T}
-
-# had to manually correct the dylib version for uhd
-# install_name_tool -change /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/libuhd.003.010.dylib /Applications/GNURadio.app/Contents/MacOS/usr/lib/python2.7/site-packages/osmosdr/_osmosdr_swig.so
 
 #
 # Install libhackrf
@@ -1610,12 +1768,14 @@ build_and_install_autotools \
 
 P=hackrf-2017.02.1
 URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
+CKSUM=sha256:1dd1fbec98bf2fa56c92f82fd66eb46801a2248c019c4707b3971bc187cb973a
 T=${P}/host
 
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
 build_and_install_cmake \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T}
 
 #
@@ -1624,12 +1784,14 @@ build_and_install_cmake \
 
 P=bladeRF-2016.06
 URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/bladerf-2016.06.tar.gz
+CKSUM=sha256:6e6333fd0f17e85f968a6180942f889705c4f2ac16507b2f86c80630c55032e8
 T=${P}/host
 
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
 build_and_install_cmake \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T}
 
 #
@@ -1638,6 +1800,7 @@ build_and_install_cmake \
 
 P=airspy
 URL=http://github.com/airspy/host.git
+CKSUM=git:5c86e53c484140a4a5038a24e4f40f4fb8e6240d
 T=${P}
 BRANCH=v1.0.9
 
@@ -1645,6 +1808,7 @@ EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INST
 build_and_install_cmake \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T} \
   ${BRANCH}
 
@@ -1654,6 +1818,7 @@ build_and_install_cmake \
 
 P=libmirisdr
 URL=git://git.osmocom.org/libmirisdr
+CKSUM=git:59ba3721b1cb7c746503d8de9c918f54fe7e8399
 T=${P}
 BRANCH=master
 
@@ -1661,6 +1826,7 @@ EXTRA_OPTS="" \
 build_and_install_autotools \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T} \
   ${BRANCH}
 
@@ -1670,6 +1836,7 @@ build_and_install_autotools \
 
 P=gr-osmosdr
 URL=git://git.osmocom.org/gr-osmosdr
+CKSUM=git:a45968f3381f33b86ca344bb76bd62c131d98d93
 T=${P}
 BRANCH=v0.1.4
 
@@ -1678,6 +1845,7 @@ EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr
 build_and_install_cmake \
   ${P} \
   ${URL} \
+  ${CKSUM} \
   ${T} \
   ${BRANCH}
 
@@ -1688,6 +1856,7 @@ build_and_install_cmake \
 #
 #  P=CairoSVG
 #  URL=http://github.com/Kozea/CairoSVG.git
+#  CKSUM=git:d7305b7f7239b51908688ad0c36fdf4ddd8f3dc9
 #  T=${P}
 #  BRANCH=1.0.22
 #
@@ -1695,6 +1864,7 @@ build_and_install_cmake \
 #build_and_install_setup_py \
 #  ${P} \
 #  ${URL} \
+#  ${CKSUM} \
 #  ${T} \
 #  ${BRANCH}
 
@@ -1705,6 +1875,7 @@ build_and_install_cmake \
 #
 #P=librsvg
 #URL=git://git.gnome.org/librsvg
+#CKSUM=git:e7aec5151543573c2f18484d4134959e219dc4a4
 #T=${P}
 #BRANCH=2.41.0
 #
@@ -1712,6 +1883,7 @@ build_and_install_cmake \
 #  build_and_install_autotools \
 #    ${P} \
 #    ${URL} \
+#    ${CKSUM} \
 #    ${T} \
 #    ${BRANCH}
 
@@ -1775,12 +1947,13 @@ fi
 
   P=gr-logo
   URL=http://github.com/gnuradio/gr-logo.git
+  CKSUM=git:8f51887761b88b8c4facda0970ae121b61a0d905
   T=${P}
   BRANCH="master"
 
 #if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH} 
 
   # create the gnuradio.icns
@@ -1854,12 +2027,13 @@ INSTALL_DIR=${INSTALL_DIR} \
 
 P=create-dmg
 URL=http://github.com/andreyvit/create-dmg.git
+CKSUM=git:5acf22fa87e1b751701f377efddc7429877ecb0a
 T=${P}
 BRANCH=master
 
 #if [ ! -f ${TMP_DIR}/${P}.done ]; then
 
-  fetch ${P} ${URL} ${T} ${BRANCH}
+  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
   #XXX: @CF: add --eula option with GPLv3. For now, just distribute LICENSE in dmg
