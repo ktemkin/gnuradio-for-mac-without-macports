@@ -209,9 +209,9 @@ function progress() {
     printf "-"
   done
   if [ "" = "$DEBUG" ]; then
-    /bin/echo "|"
-  else
     /bin/echo -n "|"
+  else
+    /bin/echo "|"
   fi
 }
 
