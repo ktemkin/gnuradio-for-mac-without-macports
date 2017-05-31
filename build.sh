@@ -654,13 +654,6 @@ build_and_install_autotools \
   ${URL} \
   ${CKSUM}
 
-# Required to prevent linker errors down the line..
-#for i in gio glib gmodule gobject gthread; do
-#  install_name_tool \
-#    -id ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib \
-#    ${INSTALL_DIR}/usr/lib/lib${i}.2.0.0.dylib 
-#done
-
 #
 # Install CMake
 #
@@ -859,12 +852,6 @@ build_and_install_setup_py \
     ${URL} \
     ${CKSUM}
 
-  # Required to prevent linker errors down the line..
-#  for i in orc; do
-#    install_name_tool \
-#      -id ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib \
-#      ${INSTALL_DIR}/usr/lib/lib${i}.0.4.0.dylib 
-#  done
 
 #
 # Install Cheetah
@@ -931,14 +918,14 @@ unset SKIP_LIBTOOLIZE
 # 
 
 # XXX: @CF: issue 13. This is already provided by XQuartz and rebuilding it here just produces dylib compatibility issues
-#P=libpng-1.6.28
-#URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
-#CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
+P=libpng-1.6.28
+URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
+CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
 
-#build_and_install_autotools \
-#  ${P} \
-#  ${URL} \
-#  ${CKSUM}
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 
 #
