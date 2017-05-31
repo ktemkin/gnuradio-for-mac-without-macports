@@ -368,14 +368,14 @@ function build_and_install_autotools() {
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T}
   
-    if [[ "" = "${SKIP_AUTORECONF}" || "" = "$(which autoreconf)" || ! -f ${TMP_DIR}/${T}/configure ]]; then
+    if [[ ( "" = "${SKIP_AUTORECONF}" || ! -f ${TMP_DIR}/${T}/configure ) && "" != "$(which autoreconf)" ]]; then
       I "Running autoreconf in ${T}"
       cd ${TMP_DIR}/${T} \
         && autoreconf -if  \
         || E "autoreconf failed for ${P}"
     fi
   
-    if [[ "" = "${SKIP_LIBTOOLIZE}" || "" = "$(which libtoolize)" ]]; then
+    if [[ "" = "${SKIP_LIBTOOLIZE}" && "" != "$(which libtoolize)" ]]; then
       I "Running libtoolize in ${T}"
       cd ${TMP_DIR}/${T} \
         && libtoolize -if \
