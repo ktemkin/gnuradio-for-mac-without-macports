@@ -789,7 +789,7 @@ build_and_install_autotools \
   URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
   CKSUM=sha256:7644bc0ee35965d2e146dde31827b8982ed70a58281085fac42869a09764d38c
 
-LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+LDFLAGS="$(python-config --ldflags) ${LDFLAGS}" \
 build_and_install_setup_py \
    ${P} \
    ${URL} \
@@ -861,7 +861,7 @@ build_and_install_setup_py \
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Cheetah-2.4.4.tar.gz'
     CKSUM=sha256:be308229f0c1e5e5af4f27d7ee06d90bb19e6af3059794e5fd536a6f29a9b550
 
-  LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+  LDFLAGS="$(python-config --ldflags) ${LDFLAGS}" \
   build_and_install_setup_py \
     ${P} \
     ${URL} \
@@ -876,7 +876,7 @@ build_and_install_setup_py \
     URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/lxml-3.7.3.tar.gz'
     CKSUM=sha256:aa502d78a51ee7d127b4824ff96500f0181d3c7826e6ee7b800d068be79361c7
 
-LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+LDFLAGS="$(python-config --ldflags) ${LDFLAGS}" \
   build_and_install_setup_py \
     ${P} \
     ${URL} \
@@ -1334,7 +1334,7 @@ fi
   URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
   CKSUM=sha256:562500b789cd599b3a4f88547a7a3280538ab2ff4939504c8b4ac4ca25feadfb
 
-  LDFLAGS="${LDFLAGS} -lcblas -lblas -lf2c" \
+  LDFLAGS="-lcblas -lblas -lf2c ${LDFLAGS}" \
   EXTRA_OPTS="" \
   build_and_install_autotools \
     ${P} \
@@ -1463,15 +1463,15 @@ T=${P}
   cd ${TMP_DIR}/${T}/wxPython \
     && \
       CC=${CXX} \
-      CFLAGS="${CPPFLAGS} ${_extra_cflags} ${CFLAGS}" \
-      CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
-      LDFLAGS="${LDFLAGS} ${_extra_libs}" \
+      CFLAGS="${_extra_cflags} ${CFLAGS} ${CPPFLAGS}" \
+      CXXFLAGS="${_extra_cflags} ${CXXFLAGS} ${CPPFLAGS}" \
+      LDFLAGS="${_extra_libs} ${LDFLAGS}" \
       ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 build \
     && \
       CC=${CXX} \
-      CFLAGS="${CPPFLAGS} ${_extra_cflags} ${CFLAGS}" \
-      CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
-      LDFLAGS="${LDFLAGS} ${_extra_libs}" \
+      CFLAGS="${_extra_cflags} ${CFLAGS} ${CPPFLAGS}" \
+      CXXFLAGS="${_extra_cflags} ${CXXFLAGS} ${CPPFLAGS}" \
+      LDFLAGS="${_extra_libs} ${LDFLAGS}" \
       ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 install \
         --prefix="${INSTALL_DIR}/usr" \
     && D "copying wx.pth to ${PYTHONPATH}/wx.pth" \
@@ -1496,7 +1496,7 @@ fi
   T=${P}
   BRANCH=v0.5.3
 
-  LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+  LDFLAGS="$(python-config --ldflags) ${LDFLAGS}" \
   build_and_install_autotools \
     ${P} \
     ${URL} \
@@ -1666,9 +1666,9 @@ else
   
   cd ${TMP_DIR}/${T} \
   && \
-  CFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
-  CXXFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
-  LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL)" \
+  CFLAGS="$(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL) ${CPPFLAGS}" \
+  CXXFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL) ${CPPFLAGS}" \
+  LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL) ${LDFLAGS}" \
   ${PYTHON} configure.py \
     --confirm-license \
     -b ${INSTALL_DIR}/usr/bin \
@@ -1827,7 +1827,7 @@ CKSUM=git:a45968f3381f33b86ca344bb76bd62c131d98d93
 T=${P}
 BRANCH=v0.1.4
 
-LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+LDFLAGS="$(python-config --ldflags) ${LDFLAGS}" \
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
 build_and_install_cmake \
   ${P} \
