@@ -698,7 +698,9 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
   cd ${TMP_DIR}/${T} \
     && sh bootstrap.sh \
-    && ./b2 stage \
+    && ./b2 \
+      -j $(ncpus) \
+      stage \
     && rsync -avr stage/lib/ ${INSTALL_DIR}/usr/lib/ \
     && rsync -avr boost ${INSTALL_DIR}/usr/include \
     || E "building boost failed"
