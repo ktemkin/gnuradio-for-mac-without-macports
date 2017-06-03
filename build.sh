@@ -1930,7 +1930,6 @@ EOF
   I installing run-grc script \
   && mkdir -p ${INSTALL_DIR}/usr/bin \
   && cat ${BUILD_DIR}/scripts/run-grc.sh \
-      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
       > ${INSTALL_DIR}/usr/bin/run-grc \
   && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
   || E "failed to install 'run-grc' script"
