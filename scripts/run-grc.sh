@@ -58,12 +58,22 @@ if command -v xset >/dev/null 2>&1 ; then
 	# While we wait, use osascript to tell the user what we're up to.
 	osascript -e 'display notification "Starting X server..." with title "GNU Radio Companion"' > /dev/null 2>&1 || true
 	if xset q >/dev/null 2>&1 ; then
-		osascript -e 'display notification "Starting GNU Radio Companion..." with title "GNU Radio Companion"' > /dev/null 2>&1 || true
+		osascript \
+			-e 'on run(argv)' \
+			-e 'display notification ("exec gnuradio-companion " & item 1 of argv) with title "GNU Radio Companion" subtitle "Launching GNU Radio Companion..."' \
+			-e 'end run' \
+			-- "$*" \
+			> /dev/null 2>&1 || true
 	else
 		osascript -e 'display notification "Unable to verify running X server.  Will attempt anyway..." with title "GNU Radio Companion"' > /dev/null 2>&1 || true
 	fi
 else
-	osascript -e 'display notification "Starting GNU Radio Companion..." with title "GNU Radio Companion"' > /dev/null 2>&1 || true
+	osascript \
+		-e 'on run(argv)' \
+		-e 'display notification ("exec gnuradio-companion " & item 1 of argv) with title "GNU Radio Companion" subtitle "Launching GNU Radio Companion..."' \
+		-e 'end run' \
+		-- "$*" \
+		> /dev/null 2>&1 || true
 fi
 
 ## Strip out the -psn_... argument added by the OS.
