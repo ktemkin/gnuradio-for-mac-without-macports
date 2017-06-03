@@ -1998,6 +1998,71 @@ mkdir -p ${CONTENTS_DIR} \
   <string>6.0</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>grc</string>
+        <string>GRC</string>
+        <string>grc.xml</string>
+        <string>GRC.XML</string>
+      </array>
+      <key>CFBundleTypeIconFile</key>
+      <string>gnuradio.icns</string>
+      <key>CFBundleTypeMIMETypes</key>
+      <array>
+        <string>application/gnuradio-grc</string>
+      </array>
+      <key>CFBundleTypeName</key>
+      <string>GNU Radio Companion Flow Graph</string>
+      <key>CFBundleTypeOSTypes</key>
+      <array>
+        <string>GRC </string>
+      </array>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSIsAppleDefaultForType</key>
+      <true />
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>org.gnuradio.grc</string>
+      </array>
+    </dict>
+  </array>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.xml</string>
+      </array>
+      <key>UTTypeDescription</key>
+      <string>GNU Radio Companion Flow Graph</string>
+      <key>UTTypeIconFile</key>
+      <string>gnuradio.icns</string>
+      <key>UTTypeIdentifier</key>
+      <string>org.gnuradio.grc</string>
+      <key>UTTypeReferenceURL</key>
+      <string>http://www.gnuradio.org/</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>com.apple.ostype</key>
+        <string>GRC </string>
+        <key>public.filename-extension</key>
+        <array>
+          <string>grc</string>
+          <string>GRC</string>
+          <string>grc.xml</string>
+          <string>GRC.XML</string>
+        </array>
+        <key>public.mime-type</key>
+        <array>
+          <string>application/gnuradio-grc</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
 </dict>
 </plist>
 EOF
