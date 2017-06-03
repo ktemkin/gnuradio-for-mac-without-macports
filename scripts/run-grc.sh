@@ -42,7 +42,12 @@ esac
 grenv_path="${argv0_path%/*}/grenv.sh"
 
 if ! test -e "${grenv_path}" ; then
-	osascript -e 'on run argv' -e 'display dialog ("Unable to find grenv.sh at " & item 1 of argv) buttons {"OK"} default button 1 with icon stop with title "GNU Radio Companion"' -e 'end run' "${grenv_path}" > /dev/null 2>&1 || true
+	osascript \
+		-e 'on run(argv)' \
+		-e 'display dialog ("Unable to find grenv.sh at " & item 1 of argv) buttons {"OK"} default button 1 with icon stop with title "GNU Radio Companion"' \
+		-e 'end run' \
+		-- "${grenv_path}" \
+		> /dev/null 2>&1 || true
 	printf 'Unable to find grenv.sh at %s\n' "${grenv_path}" 1>&2
 	exit 1
 fi
