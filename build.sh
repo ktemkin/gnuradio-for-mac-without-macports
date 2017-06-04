@@ -503,7 +503,6 @@ prefix_path_if_not_contained ${INSTALL_DIR}/usr/bin
 #prefix_dyldlibpath_if_not_contained ${INSTALL_DIR}/usr/lib
 
 CPPFLAGS="-I${INSTALL_DIR}/usr/include -I/opt/X11/include"
-#CPPFLAGS="${CPPFLAGS} -I${INSTALL_DIR}/usr/include/gdk-pixbuf-2.0 -I${INSTALL_DIR}/usr/include/cairo -I${INSTALL_DIR}/usr/include/pango-1.0 -I${INSTALL_DIR}/usr/include/atk-1.0"
 export CPPFLAGS
 export CC="clang -mmacosx-version-min=10.7"
 export CXX="clang++ -mmacosx-version-min=10.7 -stdlib=libc++"
@@ -919,15 +918,14 @@ unset SKIP_LIBTOOLIZE
 # Install png
 # 
 
-# XXX: @CF: issue 13. This is already provided by XQuartz and rebuilding it here just produces dylib compatibility issues
-P=libpng-1.6.28
-URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
-CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
-
-build_and_install_autotools \
-  ${P} \
-  ${URL} \
-  ${CKSUM}
+#P=libpng-1.6.28
+#URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
+#CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
+#
+#build_and_install_autotools \
+#  ${P} \
+#  ${URL} \
+#  ${CKSUM}
 
 
 #
@@ -966,16 +964,16 @@ T=jpeg-6b
 # Install freetype
 # 
 
-    P=freetype-2.7
-    URL='http://mirror.csclub.uwaterloo.ca/nongnu//freetype/freetype-2.7.tar.gz'
-    CKSUM=sha256:7b657d5f872b0ab56461f3bd310bd1c5ec64619bd15f0d8e08282d494d9cfea4
-
-  SKIP_AUTORECONF=yes \
-  SKIP_LIBTOOLIZE=yes \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+#    P=freetype-2.7
+#    URL='http://mirror.csclub.uwaterloo.ca/nongnu//freetype/freetype-2.7.tar.gz'
+#    CKSUM=sha256:7b657d5f872b0ab56461f3bd310bd1c5ec64619bd15f0d8e08282d494d9cfea4
+#
+#  SKIP_AUTORECONF=yes \
+#  SKIP_LIBTOOLIZE=yes \
+#  build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${CKSUM}
 
 
 #
@@ -995,22 +993,22 @@ T=jpeg-6b
 # Install fontconfig
 # 
 
-  P=fontconfig-2.12.1
-  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/fontconfig-2.12.1.tar.bz2'
-  CKSUM=sha256:b449a3e10c47e1d1c7a6ec6e2016cca73d3bd68fbbd4f0ae5cc6b573f7d6c7f3
-
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+#  P=fontconfig-2.12.1
+#  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/fontconfig-2.12.1.tar.bz2'
+#  CKSUM=sha256:b449a3e10c47e1d1c7a6ec6e2016cca73d3bd68fbbd4f0ae5cc6b573f7d6c7f3
+#
+#  build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${CKSUM}
 
 #
 # Install cairo
 # 
 
-    P=cairo-1.14.8
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/cairo-1.14.8.tar.xz'
-    CKSUM=sha256:d1f2d98ae9a4111564f6de4e013d639cf77155baf2556582295a0f00a9bc5e20
+  P=cairo-1.14.8
+  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/cairo-1.14.8.tar.xz'
+  CKSUM=sha256:d1f2d98ae9a4111564f6de4e013d639cf77155baf2556582295a0f00a9bc5e20
 
   build_and_install_autotools \
     ${P} \
@@ -2070,3 +2068,4 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 #fi
 
 I '!!!!!! DONE !!!!!!'
+
