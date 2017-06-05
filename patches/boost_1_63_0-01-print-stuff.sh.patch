@@ -1,3 +1,4 @@
+sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" << 'EOF' | git apply -
 diff --git a/tools/build/src/tools/darwin.jam b/tools/build/src/tools/darwin.jam
 index a610603..a2f64c5 100644
 --- a/tools/build/src/tools/darwin.jam
@@ -7,7 +8,8 @@ index a610603..a2f64c5 100644
  actions link.dll bind LIBRARIES
  {
 -    "$(CONFIG_COMMAND)" -dynamiclib -Wl,-single_module -install_name "$(<:B)$(<:S)" -L"$(LINKPATH)" -o "$(<)" "$(>)" "$(LIBRARIES)" -l$(FINDLIBS-SA) -l$(FINDLIBS-ST) $(FRAMEWORK_PATH) -framework$(_)$(FRAMEWORK:D=:S=) $(OPTIONS) $(USER_OPTIONS)
-+    "$(CONFIG_COMMAND)" -dynamiclib -Wl,-single_module -install_name "/Applications/GNURadio.app/Contents/MacOS/usr/lib/$(<:B)$(<:S)" -L"$(LINKPATH)" -o "$(<)" "$(>)" "$(LIBRARIES)" -l$(FINDLIBS-SA) -l$(FINDLIBS-ST) $(FRAMEWORK_PATH) -framework$(_)$(FRAMEWORK:D=:S=) $(OPTIONS) $(USER_OPTIONS)
++    "$(CONFIG_COMMAND)" -dynamiclib -Wl,-single_module -install_name "@INSTALL_DIR@/usr/lib/$(<:B)$(<:S)" -L"$(LINKPATH)" -o "$(<)" "$(>)" "$(LIBRARIES)" -l$(FINDLIBS-SA) -l$(FINDLIBS-ST) $(FRAMEWORK_PATH) -framework$(_)$(FRAMEWORK:D=:S=) $(OPTIONS) $(USER_OPTIONS)
  }
  
  # We use libtool instead of ar to support universal binary linking
+EOF
