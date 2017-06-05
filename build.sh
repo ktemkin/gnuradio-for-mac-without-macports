@@ -1374,19 +1374,27 @@ fi
     ${T} \
     ${BRANCH}
 
-# XXX: seems to cause some compile errors in gr-video-sdl atm
-#if [ 1 -eq 1 ]; then
-
 #
 # install SDL
 #
 
-#build_and_install_autotools \
-#  SDL2-2.0.5 \
-#  'http://www.libsdl.org/release/SDL2-2.0.5.tar.gz' \
-#  sha256:442038cf55965969f2ff06d976031813de643af9c9edc9e331bd761c242e8785
+#      -DSDL_INCLUDE_DIR=${INSTALL_DIR}/usr/include/SDL2 \
+#      -DSDL_LIBRARY=${INSTALL_DIR}/usr/lib/libSDL2-2.0.0.dylib \
+#
 
-#fi
+  EXTRA_OPTS=""
+
+  P=SDL2-2.0.5
+  URL=https://www.libsdl.org/release/SDL2-2.0.5.tar.gz
+  CKSUM=sha256:442038cf55965969f2ff06d976031813de643af9c9edc9e331bd761c242e8785
+  T=${P}
+
+SKIP_AUTORECONF="yes" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  ${T}
 
 #
 # Install libzmq
@@ -1728,10 +1736,6 @@ build_and_install_cmake \
   touch ${TMP_DIR}/.${P}.done
 fi
 
-
-#      -DSDL_INCLUDE_DIR=${INSTALL_DIR}/usr/include/SDL2 \
-#      -DSDL_LIBRARY=${INSTALL_DIR}/usr/lib/libSDL2-2.0.0.dylib \
-#
 
 #
 # Install osmo-sdr
