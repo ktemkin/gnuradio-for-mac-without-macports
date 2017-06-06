@@ -2074,6 +2074,12 @@ I created Info.plist
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
 
+I ============================================================================
+I fixing library references to use @loader_path under ${INSTALL_DIR}
+I ============================================================================
+"${BUILD_DIR}/scripts/fix_library_references.py" "${INSTALL_DIR}"
+I ============================================================================
+
 #
 # Create .dmg file
 #
