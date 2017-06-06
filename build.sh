@@ -1886,7 +1886,7 @@ if [ 1 -eq 1 ]; then
   I creating grenv.sh script
   cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
 PYTHON=${PYTHON}
-INSTALL_DIR=${INSTALL_DIR}
+INSTALL_DIR="\${gnuradio_install_dir:-"${INSTALL_DIR}"}"
 ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
 PYTHONPATH=\${ULPP}:\${PYTHONPATH}
 GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
