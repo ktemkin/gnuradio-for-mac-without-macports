@@ -2075,6 +2075,12 @@ I created Info.plist
 #fi
 
 I ============================================================================
+I finding broken .dylibs and .so files in ${INSTALL_DIR}
+I ============================================================================
+"${INSTALL_DIR}/usr/bin/find-broken-dylibs"
+I ============================================================================
+
+I ============================================================================
 I fixing library references to use @loader_path under ${INSTALL_DIR}
 I ============================================================================
 "${BUILD_DIR}/scripts/fix_library_references.py" "${INSTALL_DIR}"
@@ -2138,11 +2144,5 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
-
-I ============================================================================
-I finding broken .dylibs and .so files in ${INSTALL_DIR}
-I ============================================================================
-${INSTALL_DIR}/usr/bin/find-broken-dylibs
-I ============================================================================
 
 I '!!!!!! DONE !!!!!!'
