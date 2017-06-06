@@ -4,7 +4,7 @@
 # The above line sets vim to set tab stops at 4 columns, and fill them with spaces instead of tab characters.
 
 """
-fix_library_references.py - Rewrite library references to use @loader_path
+fix-library-references - Rewrite library references to use @loader_path
 """
 
 import os as _os, stat as _stat, subprocess as _subprocess
