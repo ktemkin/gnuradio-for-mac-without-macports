@@ -51,6 +51,7 @@ if ! test -e "${grenv_path}" ; then
 	printf 'Unable to find grenv.sh at %s\n' "${grenv_path}" 1>&2
 	exit 1
 fi
+gnuradio_install_dir="${argv0_path%/*}/../.."
 . "${grenv_path}"
 
 if command -v xset >/dev/null 2>&1 ; then

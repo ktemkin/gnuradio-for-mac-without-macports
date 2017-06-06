@@ -1886,7 +1886,7 @@ if [ 1 -eq 1 ]; then
   I creating grenv.sh script
   cat > ${INSTALL_DIR}/usr/bin/grenv.sh << EOF
 PYTHON=${PYTHON}
-INSTALL_DIR=${INSTALL_DIR}
+INSTALL_DIR="\${gnuradio_install_dir:-"${INSTALL_DIR}"}"
 ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
 PYTHONPATH=\${ULPP}:\${PYTHONPATH}
 GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
@@ -2074,6 +2074,18 @@ I created Info.plist
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
 
+I ============================================================================
+I finding broken .dylibs and .so files in ${INSTALL_DIR}
+I ============================================================================
+"${INSTALL_DIR}/usr/bin/find-broken-dylibs"
+I ============================================================================
+
+I ============================================================================
+I fixing library references to use @loader_path under ${INSTALL_DIR}
+I ============================================================================
+"${BUILD_DIR}/scripts/fix-library-references" "${INSTALL_DIR}"
+I ============================================================================
+
 #
 # Create .dmg file
 #
@@ -2132,11 +2144,5 @@ I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
 
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
-
-I ============================================================================
-I finding broken .dylibs and .so files in ${INSTALL_DIR}
-I ============================================================================
-${INSTALL_DIR}/usr/bin/find-broken-dylibs
-I ============================================================================
 
 I '!!!!!! DONE !!!!!!'
