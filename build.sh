@@ -169,7 +169,7 @@ function fetch() {
       && git -C ${TMP_DIR}/${T} pull \
       ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to pull from ${URL}" )
     if [ "" != "${BRANCH}" ]; then
-      git -C cd ${TMP_DIR}/${T} checkout -b local-${BRANCH} ${BRANCH} \
+      git -C ${TMP_DIR}/${T} checkout -b local-${BRANCH} ${BRANCH} \
         || ( rm -Rf ${TMP_DIR}/${T}; E "failed to checkout ${BRANCH}" )
     fi
     verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
