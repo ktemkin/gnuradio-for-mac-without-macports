@@ -158,16 +158,18 @@ function fetch() {
 
   if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
     D "downloading to ${TMP_DIR}/${T}"
-    if [ -d ${TMP_DIR}/${T} ]; then
-      D "already downloaded ${P}"
-      verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
-      return
+    if [ ! -d ${TMP_DIR}/${T} ]; then
+      git clone ${URL} ${TMP_DIR}/${T} \
+        ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to clone from ${URL}" )
     fi
-    git clone ${URL} ${TMP_DIR}/${T} \
-      ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to clone from ${URL}" )
+    git -C ${TMP_DIR}/${T} reset \
+      && git -C ${TMP_DIR}/${T} checkout . \
+      && git -C ${TMP_DIR}/${T} checkout master \
+      && git -C ${TMP_DIR}/${T} fetch \
+      && git -C ${TMP_DIR}/${T} pull \
+      ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to pull from ${URL}" )
     if [ "" != "${BRANCH}" ]; then
-      cd ${TMP_DIR}/${T} \
-        && git checkout -b local-${BRANCH} ${BRANCH} \
+      git -C cd ${TMP_DIR}/${T} checkout -b local-${BRANCH} ${BRANCH} \
         || ( rm -Rf ${TMP_DIR}/${T}; E "failed to checkout ${BRANCH}" )
     fi
     verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
@@ -201,11 +203,7 @@ function unpack() {
   fi
 
   if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
-    I "resetting and checking out files from git"
-    cd ${TMP_DIR}/${T} \
-      && git reset \
-      && git checkout . \
-      || E "failed to git checkout in ${T}"
+    I "git repository has been refreshed"
   else
     local opts=
     local cmd=
@@ -1364,7 +1362,7 @@ fi
   URL=git://github.com/EttusResearch/uhd.git
   CKSUM=git:25fc32af6585fcbb23ff8d89d0a88c76bc21b3b3
   T=${P}
-  BRANCH=25fc32af6585fcbb23ff8d89d0a88c76bc21b3b3
+  BRANCH=master
 
   EXTRA_OPTS="-DENABLE_E300=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}/host" \
   build_and_install_cmake \
