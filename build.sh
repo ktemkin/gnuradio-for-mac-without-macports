@@ -169,6 +169,7 @@ function fetch() {
       && git -C ${TMP_DIR}/${T} pull \
       ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to pull from ${URL}" )
     if [ "" != "${BRANCH}" ]; then
+      git -C ${TMP_DIR}/${T} branch -D local-${BRANCH} &> /dev/null
       git -C ${TMP_DIR}/${T} checkout -b local-${BRANCH} ${BRANCH} \
         || ( rm -Rf ${TMP_DIR}/${T}; E "failed to checkout ${BRANCH}" )
     fi
