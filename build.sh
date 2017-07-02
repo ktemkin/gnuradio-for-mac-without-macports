@@ -1362,9 +1362,9 @@ fi
 
   P=uhd
   URL=git://github.com/EttusResearch/uhd.git
-  CKSUM=git:c705922a08e32c8b0ec7ef6af6137835f87b2f42
+  CKSUM=git:25fc32af6585fcbb23ff8d89d0a88c76bc21b3b3
   T=${P}
-  BRANCH=release_003_010_001_001
+  BRANCH=25fc32af6585fcbb23ff8d89d0a88c76bc21b3b3
 
   EXTRA_OPTS="-DENABLE_E300=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}/host" \
   build_and_install_cmake \
