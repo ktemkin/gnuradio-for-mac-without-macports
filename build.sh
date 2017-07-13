@@ -1706,6 +1706,8 @@ BRANCH=v${GNURADIO_BRANCH}
   fetch volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3 git:4465f9b26354e555e583a7d654710cb63cf914ce
   unpack volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
 
+  rm -f ${TMP_DIR}/.${P}.done
+
 EXTRA_OPTS="\
   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
   -DFFTW3F_INCLUDE_DIRS=${INSTALL_DIR}/usr/include \
@@ -1729,9 +1731,6 @@ build_and_install_cmake \
 #for i in $(find ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages -name '*.so'); do \
 #  ln -sf ${i} ${INSTALL_DIR}/usr/lib; \
 #done
-
-  touch ${TMP_DIR}/.${P}.done
-
 
 #
 # Install osmo-sdr
