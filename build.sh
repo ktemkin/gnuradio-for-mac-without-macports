@@ -1698,8 +1698,6 @@ CKSUM=git:59daaff0d9d04373d3a6b14ea7b46e080bad7a1e
 T=${P}
 BRANCH=v${GNURADIO_BRANCH}
 
-if [ ! -f ${TMP_DIR}/.${P}.done ]; then
-
   fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
@@ -1733,7 +1731,6 @@ build_and_install_cmake \
 #done
 
   touch ${TMP_DIR}/.${P}.done
-fi
 
 
 #
