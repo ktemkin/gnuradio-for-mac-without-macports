@@ -1772,7 +1772,7 @@ URL=http://cgit.osmocom.org/osmo-sdr/snapshot/osmo-sdr-0.1.tar.xz
 CKSUM=sha256:ac488768ad735dd6ca0ba594643f831e2b62747244da9a233264c11a96bc1f96
 T=${P}/software/libosmosdr
 
-EXTRA_OPTS="" \
+EXTRA_OPTS="-DENABLE_NONFREE=TRUE" \
 build_and_install_autotools \
   ${P} \
   ${URL} \
