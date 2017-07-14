@@ -483,6 +483,7 @@ function build_and_install_qmake() {
 MAKE="${MAKE:-"make -j$(ncpus)"}"
 PYTHON=python2.7
 export PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages
+export SDLDIR=${INSTALL_DIR}/usr
 
 #
 # main
@@ -1373,19 +1374,24 @@ fi
     ${T} \
     ${BRANCH}
 
-# XXX: seems to cause some compile errors in gr-video-sdl atm
-#if [ 1 -eq 1 ]; then
-
 #
 # install SDL
 #
 
-#build_and_install_autotools \
-#  SDL2-2.0.5 \
-#  'http://www.libsdl.org/release/SDL2-2.0.5.tar.gz' \
-#  sha256:442038cf55965969f2ff06d976031813de643af9c9edc9e331bd761c242e8785
+  EXTRA_OPTS=""
 
-#fi
+  P=SDL-1.2.15
+  URL=https://www.libsdl.org/release/SDL-1.2.15.tar.gz
+  CKSUM=sha256:d6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00
+  T=${P}
+
+LDFLAGS="-framework CoreFoundation -framework CoreAudio -framework CoreServices -L/usr/X11R6/lib -lX11" \
+SKIP_AUTORECONF="yes" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  ${T}
 
 #
 # Install libzmq
@@ -1690,8 +1696,6 @@ CKSUM=git:59daaff0d9d04373d3a6b14ea7b46e080bad7a1e
 T=${P}
 BRANCH=v${GNURADIO_BRANCH}
 
-if [ ! -f ${TMP_DIR}/.${P}.done ]; then
-
   fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
@@ -1699,6 +1703,8 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
   
   fetch volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3 git:4465f9b26354e555e583a7d654710cb63cf914ce
   unpack volk git://github.com/gnuradio/volk.git gnuradio/volk v1.3
+
+  rm -f ${TMP_DIR}/.${P}.done
 
 EXTRA_OPTS="\
   -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
@@ -1723,14 +1729,6 @@ build_and_install_cmake \
 #for i in $(find ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages -name '*.so'); do \
 #  ln -sf ${i} ${INSTALL_DIR}/usr/lib; \
 #done
-
-  touch ${TMP_DIR}/.${P}.done
-fi
-
-
-#      -DSDL_INCLUDE_DIR=${INSTALL_DIR}/usr/include/SDL2 \
-#      -DSDL_LIBRARY=${INSTALL_DIR}/usr/lib/libSDL2-2.0.0.dylib \
-#
 
 #
 # Install osmo-sdr
