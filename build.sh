@@ -1385,7 +1385,7 @@ fi
   CKSUM=sha256:d6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00
   T=${P}
 
-LDFLAGS="-framework CoreFoundation -framework CoreAudio -framework CoreServices -L/usr/X11R6/lib -lX11" \
+LDFLAGS="${LDFLAGS} -framework CoreFoundation -framework CoreAudio -framework CoreServices -L/usr/X11R6/lib -lX11" \
 SKIP_AUTORECONF="yes" \
 build_and_install_autotools \
   ${P} \
