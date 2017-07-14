@@ -483,6 +483,7 @@ function build_and_install_qmake() {
 MAKE="${MAKE:-"make -j$(ncpus)"}"
 PYTHON=python2.7
 export PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages
+export SDLDIR=${INSTALL_DIR}/usr
 
 #
 # main
@@ -1377,17 +1378,14 @@ fi
 # install SDL
 #
 
-#      -DSDL_INCLUDE_DIR=${INSTALL_DIR}/usr/include/SDL2 \
-#      -DSDL_LIBRARY=${INSTALL_DIR}/usr/lib/libSDL2-2.0.0.dylib \
-#
-
   EXTRA_OPTS=""
 
-  P=SDL2-2.0.5
-  URL=https://www.libsdl.org/release/SDL2-2.0.5.tar.gz
-  CKSUM=sha256:442038cf55965969f2ff06d976031813de643af9c9edc9e331bd761c242e8785
+  P=SDL-1.2.15
+  URL=https://www.libsdl.org/release/SDL-1.2.15.tar.gz
+  CKSUM=sha256:d6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00
   T=${P}
 
+LDFLAGS="-framework CoreFoundation -framework CoreAudio -framework CoreServices -L/usr/X11R6/lib -lX11" \
 SKIP_AUTORECONF="yes" \
 build_and_install_autotools \
   ${P} \
