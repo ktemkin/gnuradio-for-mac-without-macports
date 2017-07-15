@@ -69,13 +69,13 @@ function check_prerequisites() {
   
   XCODE_DEVELOPER_DIR_CMD="xcode-select -p"
   [[ "" = "$(${XCODE_DEVELOPER_DIR_CMD} 2>/dev/null)" ]] \
-    || die "Xcode command-line developer tools are not installed. You can install them with 'xcode-select --install'"
+    && E "Xcode command-line developer tools are not installed. You can install them with 'xcode-select --install'"
   
   [[ -d ${XQUARTZ_APP_DIR} ]] \
-    || die "XQuartz is not installed. Download it at http://www.xquartz.org/"
+    || E "XQuartz is not installed. Download it at http://www.xquartz.org/"
 
   [[ -d ${PYTHON_FRAMEWORK_DIR} ]] \
-    || die "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
+    || E "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
 }
 
 function gen_version() {
@@ -536,6 +536,8 @@ function build_and_install_qmake() {
 
 I "BUILD_DIR = '${BUILD_DIR}'"
 I "INSTALL_DIR = '${INSTALL_DIR}'"
+
+check_prerequisites
 
 #rm -Rf ${TMP_DIR}
 
