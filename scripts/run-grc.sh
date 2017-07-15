@@ -1,5 +1,8 @@
 #!/bin/sh
 
+XQUARTZ_APP_DIR=/Applications/Utilities/XQuartz.app
+PYTHON_FRAMEWORK_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7
+
 set -e
 
 show_fail_message () {
@@ -40,6 +43,24 @@ case "$0" in
 esac
 # This script is in GNURadio.app/Contents/MacOS/usr/bin with grenv.sh
 grenv_path="${argv0_path%/*}/grenv.sh"
+
+if ! test -d ${XQUARTZ_APP_DIR} ; then
+    osascript \
+        -e 'on run(argv)' \
+        -e 'display dialog ("XQuartz is not installed. Download it at http://www.xquartz.org/") buttons {"OK"} default button 1 with icon stop with title "GNU Radio Companion"' \
+        -e 'end run' \
+        > /dev/null 2>&1 || true
+    printf 'XQuartz is not installed. Download it at http://www.xquartz.org/\n' 1>&2
+fi
+
+if ! test -d ${PYTHON_FRAMEWORK_DIR} ; then
+    osascript \
+        -e 'on run(argv)' \
+        -e 'display dialog ("Python 2.7 is not installed. Download it here: https://www.python.org/downloads/") buttons {"OK"} default button 1 with icon stop with title "GNU Radio Companion"' \
+        -e 'end run' \
+        > /dev/null 2>&1 || true
+    printf 'Python 2.7 is not installed. Download it here: https://www.python.org/downloads/\n' 1>&2
+fi
 
 if ! test -e "${grenv_path}" ; then
 	osascript \
