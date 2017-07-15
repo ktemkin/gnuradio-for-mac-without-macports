@@ -2130,7 +2130,7 @@ BRANCH=master
   
   #XXX: @CF: add --eula option with GPLv3. For now, just distribute LICENSE in dmg
   
-  RELEASE="$(gen_version)"
+  VERSION="$(gen_version)"
   
   cd ${TMP_DIR}/${P} \
   && I "copying GNURadio.app to temporary folder (this can take some time)" \
