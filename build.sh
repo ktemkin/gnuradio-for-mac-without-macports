@@ -56,6 +56,42 @@ CONTENTS_DIR=${APP_DIR}/Contents
 RESOURCES_DIR=${CONTENTS_DIR}/Resources
 INSTALL_DIR=${CONTENTS_DIR}/MacOS
 
+function gen_version() {
+  local dirty
+  local last_tag
+  local last_tag_commit
+  local last_commit
+  local short_last_commit
+  local ver
+  
+  cd ${BUILD_DIR}
+
+  last_commit="$(git rev-parse --verify HEAD)"    
+  short_last_commit="$(git rev-parse --short HEAD)"
+  last_tag="$(git describe --abbrev=0 --tags)"
+
+  if git diff-index --quiet HEAD --; then
+    dirty=""
+  else
+    dirty="-dirty"
+  fi
+
+  if [ "" = "${last_tag}" ]; then
+    ver="${short_last_commit}"
+  else
+    last_tag_commit="$(git rev-list -n 1 ${last_tag})"
+    if [ "${last_tag_commit}" = "${last_commit}" -a "" = "${dirty}" ]; then
+      ver="${last_tag}"
+    else
+      ver="${short_last_commit}"
+    fi
+  fi
+
+  ver+=${dirty}
+  
+  echo "${ver}"
+}
+
 function xpath_contains() {
   local x=${1}
   local y=${2}
@@ -1696,6 +1732,8 @@ CKSUM=git:59daaff0d9d04373d3a6b14ea7b46e080bad7a1e
 T=${P}
 BRANCH=v${GNURADIO_BRANCH}
 
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
   fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
   unpack ${P} ${URL} ${T} ${BRANCH}
   
@@ -1729,6 +1767,10 @@ build_and_install_cmake \
 #for i in $(find ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages -name '*.so'); do \
 #  ln -sf ${i} ${INSTALL_DIR}/usr/lib; \
 #done
+
+  touch ${TMP_DIR}/.${P}.done
+
+fi
 
 #
 # Install osmo-sdr
@@ -2088,16 +2130,20 @@ BRANCH=master
   
   #XXX: @CF: add --eula option with GPLv3. For now, just distribute LICENSE in dmg
   
+  VERSION="$(gen_version)"
+  
+  I creating GNURadio-${VERSION}.dmg
+  
   cd ${TMP_DIR}/${P} \
   && I "copying GNURadio.app to temporary folder (this can take some time)" \
   && rm -Rf ${TMP_DIR}/${P}/temp \
-  && rm -f ${BUILD_DIR}/*GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
+  && rm -f ${BUILD_DIR}/*GNURadio-${VERSION}.dmg \
   && mkdir -p ${TMP_DIR}/${P}/temp \
   && rsync -ar ${APP_DIR} ${TMP_DIR}/${P}/temp \
   && cp ${BUILD_DIR}/LICENSE ${TMP_DIR}/${P}/temp \
   && I "executing create-dmg.. (this can take some time)" \
   && I "create-dmg \
-    --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
+    --volname "GNURadio-${VERSION}" \
     --volicon ${BUILD_DIR}/gnuradio.icns \
     --background ${BUILD_DIR}/gnuradio-logo-noicon.png \
     --window-pos 200 120 \
@@ -2107,11 +2153,11 @@ BRANCH=master
     --hide-extension GNURadio.app \
     --app-drop-link 412 190 \
     --icon-size 100 \
-    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
+    ${BUILD_DIR}/GNURadio-${VERSION}.dmg \
     ${TMP_DIR}/${P}/temp \
   " \
   && ./create-dmg \
-    --volname "GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}" \
+    --volname "GNURadio-${VERSION}" \
     --volicon ${BUILD_DIR}/gnuradio.icns \
     --background ${BUILD_DIR}/gnuradio-logo-noicon.png \
     --window-pos 200 120 \
@@ -2121,11 +2167,11 @@ BRANCH=master
     --hide-extension GNURadio.app \
     --app-drop-link 412 190 \
     --icon-size 100 \
-    ${BUILD_DIR}/GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg \
+    ${BUILD_DIR}/GNURadio-${VERSION}.dmg \
     ${TMP_DIR}/${P}/temp \
-  || E "failed to create GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
+  || E "failed to create GNURadio-${VERSION}.dmg"
 
-I "finished creating GNURadio-${GNURADIO_BRANCH}${GRFMWM_GIT_REVISION}.dmg"
+I "finished creating GNURadio-${VERSION}.dmg"
 
 #  touch ${TMP_DIR}/.${P}.done 
 #fi
