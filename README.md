@@ -9,6 +9,8 @@ We only have two requirements that you need to install first
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://www.python.org/static/img/python-logo.png" /></a>
 <a href="https://www.xquartz.org/" target="_blank"><img src="https://www.xquartz.org/Xlogo.png" /></a>
 
+Please download the Python 2.7 release.
+
 ## Installation
 
 Following Apple conventions, installation is easy.
@@ -36,8 +38,6 @@ TODO: write #exactsteps [Issue #9](https://github.com/cfriedt/gnuradio-for-mac-w
 ## DIY
 
 For those who desperately want to build GNURadio for Mac from scratch using our method, you will only need two requirements listed above and to run [build.sh](https://github.com/cfriedt/gnuradio-for-mac-without-macports/blob/master/build.sh).
-
-TODO: #exactsteps for building DIY [Issue #10](https://github.com/cfriedt/gnuradio-for-mac-without-macports/issues/10)
 
 Keep in mind, that building most dependencies from scratch will take some amount of time, but it should work without any errors.
 
