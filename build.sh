@@ -2132,6 +2132,8 @@ BRANCH=master
   
   VERSION="$(gen_version)"
   
+  I creating GNURadio-${VERSION}.dmg
+  
   cd ${TMP_DIR}/${P} \
   && I "copying GNURadio.app to temporary folder (this can take some time)" \
   && rm -Rf ${TMP_DIR}/${P}/temp \
