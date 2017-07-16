@@ -1791,7 +1791,7 @@ build_and_install_cmake \
 P=cfreesrp
 URL=https://github.com/FreeSRP/cfreesrp.git
 CKSUM=git:9ff8b2b5f25bd5fe32e5245d30a28520ff059eea
-T=${P}
+T=libfreesrp
 BRANCH=9ff8b2b5f25bd5fe32e5245d30a28520ff059eea
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
