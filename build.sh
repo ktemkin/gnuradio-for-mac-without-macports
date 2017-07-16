@@ -216,15 +216,17 @@ function fetch() {
       git clone ${URL} ${TMP_DIR}/${T} \
         ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to clone from ${URL}" )
     fi
-    git -C ${TMP_DIR}/${T} reset \
-      && git -C ${TMP_DIR}/${T} checkout . \
-      && git -C ${TMP_DIR}/${T} checkout master \
-      && git -C ${TMP_DIR}/${T} fetch \
-      && git -C ${TMP_DIR}/${T} pull \
+    cd ${TMP_DIR}/${T} \
+      && git reset \
+      && git checkout . \
+      && git checkout master \
+      && git fetch \
+      && git pull \
+      && rm -Rf $(git ls-files --others --exclude-standard) \
       ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to pull from ${URL}" )
     if [ "" != "${BRANCH}" ]; then
-      git -C ${TMP_DIR}/${T} branch -D local-${BRANCH} &> /dev/null
-      git -C ${TMP_DIR}/${T} checkout -b local-${BRANCH} ${BRANCH} \
+      git branch -D local-${BRANCH} &> /dev/null
+      git checkout -b local-${BRANCH} ${BRANCH} \
         || ( rm -Rf ${TMP_DIR}/${T}; E "failed to checkout ${BRANCH}" )
     fi
     verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
