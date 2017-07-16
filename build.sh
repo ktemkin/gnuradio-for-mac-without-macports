@@ -1785,6 +1785,25 @@ build_and_install_cmake \
   ${BRANCH}
 
 #
+# Install LimeSuite
+#
+
+P=LimeSuite
+URL=https://github.com/myriadrf/LimeSuite.git
+CKSUM=git:9c365b144dc8fcc277a77843adf7dd4d55ba6406
+T=${P}
+BRANCH=v17.06.0
+
+LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  ${T} \
+  ${BRANCH}
+
+#
 # Install osmo-sdr
 #
 
