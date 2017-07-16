@@ -222,7 +222,7 @@ function fetch() {
       && git checkout master \
       && git fetch \
       && git pull \
-      && rm -Rf $(git ls-files --others --exclude-standard) \
+      && git ls-files --others --exclude-standard | xargs rm -Rf \
       ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to pull from ${URL}" )
     if [ "" != "${BRANCH}" ]; then
       git branch -D local-${BRANCH} &> /dev/null
