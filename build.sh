@@ -1,8 +1,5 @@
 #!/bin/sh
 
-# XXX: @CF: if we are a tagged release then do not use GIT
-# Otherwise, tack on the contents of 'git rev-parse --short HEAD'
-GRFMWM_GIT_REVISION="-94ee402"
 GNURADIO_BRANCH=3.7.10.1
 
 # default os x path minus /usr/local/bin, which could have pollutants
@@ -44,6 +41,10 @@ function D() {
   fi
 }
 
+function ncpus() {
+  sysctl -n hw.ncpu
+}
+
 [[ "$(uname)" = "Darwin" ]] \
   || E "This script is only intended to be run on Mac OS X"
 
@@ -55,6 +56,27 @@ APP_DIR="${APP_DIR:-"/Applications/GNURadio.app"}"
 CONTENTS_DIR=${APP_DIR}/Contents
 RESOURCES_DIR=${CONTENTS_DIR}/Resources
 INSTALL_DIR=${CONTENTS_DIR}/MacOS
+
+MAKE="${MAKE:-"make -j$(ncpus)"}"
+PYTHON=python2.7
+
+PYTHON_FRAMEWORK_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7
+
+export PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages
+export SDLDIR=${INSTALL_DIR}/usr
+
+function check_prerequisites() {
+  
+  XCODE_DEVELOPER_DIR_CMD="xcode-select -p"
+  [[ "" = "$(${XCODE_DEVELOPER_DIR_CMD} 2>/dev/null)" ]] \
+    && E "Xcode command-line developer tools are not installed. You can install them with 'xcode-select --install'"
+  
+  [[ -d ${XQUARTZ_APP_DIR} ]] \
+    || E "XQuartz is not installed. Download it at http://www.xquartz.org/"
+
+  [[ -d ${PYTHON_FRAMEWORK_DIR} ]] \
+    || E "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
+}
 
 function gen_version() {
   local dirty
@@ -128,10 +150,6 @@ function prefix_path_if_not_contained() {
     return
   fi
   export PATH=${1}:${PATH}
-}
-
-function ncpus() {
-  sysctl -n hw.ncpu
 }
 
 function verify_sha256() {
@@ -513,20 +531,13 @@ function build_and_install_qmake() {
 #}
 
 #
-# misc
-# 
-
-MAKE="${MAKE:-"make -j$(ncpus)"}"
-PYTHON=python2.7
-export PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages
-export SDLDIR=${INSTALL_DIR}/usr
-
-#
 # main
 #
 
 I "BUILD_DIR = '${BUILD_DIR}'"
 I "INSTALL_DIR = '${INSTALL_DIR}'"
+
+check_prerequisites
 
 #rm -Rf ${TMP_DIR}
 
@@ -548,17 +559,6 @@ export PKG_CONFIG_PATH="${INSTALL_DIR}/usr/lib/pkgconfig:/opt/X11/lib/pkgconfig"
 
 unset DYLD_LIBRARY_PATH
 
-#
-# Check for Xcode Command-Line Developer tools (Prerequisite)
-#
-
-[[ -d ${XQUARTZ_APP_DIR} ]] \
-  || E "XQuartz is not installed. Download it at http://www.xquartz.org/"
-
-XCODE_DEVELOPER_DIR_CMD="xcode-select -p"
-[[ "" = "$(${XCODE_DEVELOPER_DIR_CMD} 2>/dev/null)" ]] \
-  && E "Xcode command-line developer tools are not installed. You can install them with 'xcode-select --install'"
-
 # install wrappers for ar and ranlib, which prevent autotools from working
 mkdir -p ${INSTALL_DIR}/usr/bin \
  && cp ${BUILD_DIR}/scripts/ar-wrapper.sh ${INSTALL_DIR}/usr/bin/ar \
@@ -570,15 +570,6 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
 
 [[ $(which ar) = ${INSTALL_DIR}/usr/bin/ar ]] \
   || E "sanity check failed. ar-wrapper is not in PATH"
-
-#
-# Check for Python 2.7 (Prerequisite)
-#
-
-[[ -d /Library/Frameworks/Python.framework/Versions/2.7 ]] \
-  || [[ -d /System/Library/Frameworks/Python.framework/Versions/2.7 ]] \
-  || E "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
-
 
 #
 # Install autoconf
