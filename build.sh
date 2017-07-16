@@ -1784,6 +1784,24 @@ build_and_install_cmake \
   ${T} \
   ${BRANCH}
 
+#
+# Install libfreesrp
+#
+
+P=cfreesrp
+URL=https://github.com/FreeSRP/cfreesrp.git
+CKSUM=git:9ff8b2b5f25bd5fe32e5245d30a28520ff059eea
+T=${P}
+BRANCH=9ff8b2b5f25bd5fe32e5245d30a28520ff059eea
+
+LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  ${T} \
+  ${BRANCH}
 
 #
 # Install osmo-sdr
