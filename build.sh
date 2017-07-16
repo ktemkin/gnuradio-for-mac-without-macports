@@ -1528,7 +1528,7 @@ fi
   URL=git://git.osmocom.org/rtl-sdr
   CKSUM=git:df9596b2d1ebd36cdb14549cfdd76c25092e14d0
   T=${P}
-  BRANCH=v0.5.3
+  BRANCH=18bf26989c926a5db4fca29e7d859af42af1437c
 
   LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_autotools \
