@@ -1766,6 +1766,26 @@ build_and_install_cmake \
 fi
 
 #
+# Install SoapySDR
+#
+
+P=SoapySDR
+URL=https://github.com/pothosware/SoapySDR.git
+CKSUM=git:74f890ce73c58c37df08ea518541d3f49ffefadb
+T=${P}
+BRANCH=soapy-sdr-0.6.0
+
+LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  ${T} \
+  ${BRANCH}
+
+
+#
 # Install osmo-sdr
 #
 
