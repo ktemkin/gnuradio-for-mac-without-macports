@@ -1,0 +1,92 @@
+diff --git a/lib/rtl_tcp/rtl_tcp_source_c.cc b/lib/rtl_tcp/rtl_tcp_source_c.cc
+index ecdeee0..1181778 100644
+--- a/lib/rtl_tcp/rtl_tcp_source_c.cc
++++ b/lib/rtl_tcp/rtl_tcp_source_c.cc
+@@ -73,6 +73,7 @@ typedef struct { /* structure size must be multiple of 2 bytes */
+ #pragma pack(push, 1)
+ #endif
+ struct command {
++  command( unsigned char cmd = 0, unsigned int param = 0 ) : cmd( cmd ), param( param ) {}
+   unsigned char cmd;
+   unsigned int param;
+ } __attribute__((packed));
+@@ -298,17 +299,17 @@ rtl_tcp_source_c::rtl_tcp_source_c(const std::string &args) :
+   // set direct sampling
+   struct command cmd;
+ 
+-  cmd = { 0x09, htonl(direct_samp) };
++  cmd = command( 0x09, htonl(direct_samp) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+   if (direct_samp)
+     _no_tuner = true;
+ 
+   // set offset tuning
+-  cmd = { 0x0a, htonl(offset_tune) };
++  cmd = command( 0x0a, htonl(offset_tune) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   // set bias tee
+-  cmd = { 0x0e, htonl(bias_tee) };
++  cmd = command( 0x0e, htonl(bias_tee) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ }
+ 
+@@ -406,7 +407,7 @@ osmosdr::meta_range_t rtl_tcp_source_c::get_sample_rates( void )
+ 
+ double rtl_tcp_source_c::set_sample_rate( double rate )
+ {
+-  struct command cmd = { 0x02, htonl(rate) };
++  struct command cmd( 0x02, htonl(rate) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   _rate = rate;
+@@ -455,7 +456,7 @@ osmosdr::freq_range_t rtl_tcp_source_c::get_freq_range( size_t chan )
+ 
+ double rtl_tcp_source_c::set_center_freq( double freq, size_t chan )
+ {
+-  struct command cmd = { 0x01, htonl(freq) };
++  struct command cmd( 0x01, htonl(freq) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   _freq = freq;
+@@ -470,7 +471,7 @@ double rtl_tcp_source_c::get_center_freq( size_t chan )
+ 
+ double rtl_tcp_source_c::set_freq_corr( double ppm, size_t chan )
+ {
+-  struct command cmd = { 0x05, htonl(ppm) };
++  struct command cmd( 0x05, htonl(ppm) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   _corr = ppm;
+@@ -563,11 +564,11 @@ osmosdr::gain_range_t rtl_tcp_source_c::get_gain_range( const std::string & name
+ bool rtl_tcp_source_c::set_gain_mode( bool automatic, size_t chan )
+ {
+   // gain mode
+-  struct command cmd = { 0x03, htonl(!automatic) };
++  struct command cmd( 0x03, htonl(!automatic) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   // AGC mode
+-  cmd = { 0x08, htonl(automatic) };
++  cmd = command( 0x08, htonl(automatic) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   _auto_gain = automatic;
+@@ -584,7 +585,7 @@ double rtl_tcp_source_c::set_gain( double gain, size_t chan )
+ {
+   osmosdr::gain_range_t gains = rtl_tcp_source_c::get_gain_range( chan );
+ 
+-  struct command cmd = { 0x04, htonl(int(gains.clip(gain) * 10.0)) };
++  struct command cmd( 0x04, htonl(int(gains.clip(gain) * 10.0)) );
+   send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+ 
+   _gain = gain;
+@@ -671,7 +672,7 @@ double rtl_tcp_source_c::set_if_gain(double gain, size_t chan)
+   for (unsigned int stage = 1; stage <= gains.size(); stage++) {
+     int gain_i = int(gains[stage] * 10.0);
+     uint32_t params = stage << 16 | (gain_i & 0xffff);
+-    struct command cmd = { 0x06, htonl(params) };
++    struct command cmd( 0x06, htonl(params) );
+     send(d_socket, (const char*)&cmd, sizeof(cmd), 0);
+   }
+ 

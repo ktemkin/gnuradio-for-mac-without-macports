@@ -216,15 +216,17 @@ function fetch() {
       git clone ${URL} ${TMP_DIR}/${T} \
         ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to clone from ${URL}" )
     fi
-    git -C ${TMP_DIR}/${T} reset \
-      && git -C ${TMP_DIR}/${T} checkout . \
-      && git -C ${TMP_DIR}/${T} checkout master \
-      && git -C ${TMP_DIR}/${T} fetch \
-      && git -C ${TMP_DIR}/${T} pull \
+    cd ${TMP_DIR}/${T} \
+      && git reset \
+      && git checkout . \
+      && git checkout master \
+      && git fetch \
+      && git pull \
+      && git ls-files --others --exclude-standard | xargs rm -Rf \
       ||  ( rm -Rf ${TMP_DIR}/${T}; E "failed to pull from ${URL}" )
     if [ "" != "${BRANCH}" ]; then
-      git -C ${TMP_DIR}/${T} branch -D local-${BRANCH} &> /dev/null
-      git -C ${TMP_DIR}/${T} checkout -b local-${BRANCH} ${BRANCH} \
+      git branch -D local-${BRANCH} &> /dev/null
+      git checkout -b local-${BRANCH} ${BRANCH} \
         || ( rm -Rf ${TMP_DIR}/${T}; E "failed to checkout ${BRANCH}" )
     fi
     verify_checksum "${TMP_DIR}/${T}" "${CKSUM}"
@@ -1526,7 +1528,7 @@ fi
   URL=git://git.osmocom.org/rtl-sdr
   CKSUM=git:df9596b2d1ebd36cdb14549cfdd76c25092e14d0
   T=${P}
-  BRANCH=v0.5.3
+  BRANCH=18bf26989c926a5db4fca29e7d859af42af1437c
 
   LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_autotools \
@@ -1767,17 +1769,20 @@ fi
 # Install osmo-sdr
 #
 
-P=osmo-sdr-0.1
-URL=http://cgit.osmocom.org/osmo-sdr/snapshot/osmo-sdr-0.1.tar.xz
-CKSUM=sha256:ac488768ad735dd6ca0ba594643f831e2b62747244da9a233264c11a96bc1f96
-T=${P}/software/libosmosdr
+P=osmo-sdr
+URL=git://git.osmocom.org/osmo-sdr
+CKSUM=git:ba4fd96622606620ff86141b4d0aa564712a735a
+T=${P}
+BRANCH=ba4fd96622606620ff86141b4d0aa564712a735a
 
-EXTRA_OPTS="" \
-build_and_install_autotools \
+LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
+build_and_install_cmake \
   ${P} \
   ${URL} \
   ${CKSUM} \
-  ${T}
+  ${T} \
+  ${BRANCH}
 
 #
 # Install libhackrf
@@ -1855,7 +1860,7 @@ P=gr-osmosdr
 URL=git://git.osmocom.org/gr-osmosdr
 CKSUM=git:a45968f3381f33b86ca344bb76bd62c131d98d93
 T=${P}
-BRANCH=v0.1.4
+BRANCH=c653754dde5e2cf682965e939cc016fbddbd45e4
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
