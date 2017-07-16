@@ -1788,11 +1788,11 @@ build_and_install_cmake \
 # Install libfreesrp
 #
 
-P=cfreesrp
-URL=https://github.com/FreeSRP/cfreesrp.git
-CKSUM=git:9ff8b2b5f25bd5fe32e5245d30a28520ff059eea
-T=libfreesrp
-BRANCH=9ff8b2b5f25bd5fe32e5245d30a28520ff059eea
+P=libfreesrp
+URL=https://github.com/myriadrf/libfreesrp.git
+CKSUM=git:541e7bbfeff04f0a5759f12a2d2ae427f58e97cd
+T=${P}
+BRANCH=0.3.0
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
 EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
