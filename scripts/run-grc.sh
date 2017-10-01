@@ -74,6 +74,11 @@ if ! test -e "${grenv_path}" ; then
 fi
 . "${grenv_path}"
 
+# Strip out the -psn_... argument added by the OS.
+if [ "x${1#-psn_}" != "x${1}" ]; then
+	shift 1
+fi
+
 if command -v xset >/dev/null 2>&1 ; then
 	# If xset is available, then we'll use that to silently launch the X server.
 	# While we wait, use osascript to tell the user what we're up to.
@@ -96,11 +101,6 @@ else
 		-- "$*" \
 		> /dev/null 2>&1 || true
 fi
-
-## Strip out the -psn_... argument added by the OS.
-#if [ "x${1#-psn_}" != "x${1}" ]; then
-#	shift 1
-#fi
 
 # Prime the exit status with "( exit 127 ) || " in case exec fails.  Otherwise,
 # $? is 0 during trap EXIT.
