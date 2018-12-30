@@ -57,3 +57,7 @@ GNURadio graphics are freely available under the [CC BY-ND 2.0 license](https://
 Note, we have not transformed <a href="https://github.com/gnuradio/gr-logo/blob/master/gnuradio_logo_icon-square.svg">gnuradio_logo_icon-square.svg</a> when building <a href="https://github.com/cfriedt/gnuradio-for-mac-without-macports/blob/master/gnuradio.icns">gnuradio.icns</a>. It is identical to the original graphic in every way, sampled at various resolutions. See <a href="http://applehelpwriter.com/2012/12/16/make-your-own-icns-icons-for-free/">here</a> for the #exactsteps followed. Also note that <a href="https://github.com/cfriedt/gnuradio-for-mac-without-macports/issues/8">Issue #8</a> exists to simplify that process.
 </small>
 </div>
+
+## Request for New Maintainership
+
+Hey guys - apologies, but Apple seems to have abandoned me on the last few OS updates. Can't seem to get my macOS running well on my aging MacbookPro8,2, although the hardware is fine and Ubuntu doesn't seem to mind. Likely going to go 100% Linux again. As such, it's getting a bit difficult for me to maintain this project. If anyone would like to take over maintainership, please message me!
