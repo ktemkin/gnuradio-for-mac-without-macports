@@ -60,4 +60,4 @@ Note, we have not transformed <a href="https://github.com/gnuradio/gr-logo/blob/
 
 ## GNURadio Uprev
 
-Hey, all! This project has recently been adopted by a new maintainer -- and work is underway to ship a more up-to-date version of GNUradio. This is a non-trivial change, as we have to shift quit a few things from Qt4 to Qt5. You can check out the (unstable) work in progress in the `gnuradio_uprev` branch, which should be available shortly. Check back soon! 
+Hey, all! This project has recently been adopted by a new maintainer -- and work is underway to ship a more up-to-date version of GNUradio. This is a non-trivial change, as we have to uprev quite a few dependencies -- and, for the newest GNURadio builds, shift quit a few things from Qt4 to Qt5. You can check out the (unstable) work in progress in the `gnuradio_uprev` branch, which should be available shortly. Check back soon! 
