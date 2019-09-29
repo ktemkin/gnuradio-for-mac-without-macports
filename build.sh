@@ -2,6 +2,7 @@
 
 # Currently, we build gnuradio 3.8 for Python3.7.
 GNURADIO_BRANCH=3.8.0.0
+GNURADIO_COMMIT_HASH=4cc4c74c10411235fb36de58be09022c5573dbd8
 
 # default os x path minus /usr/local/bin, which could have pollutants
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
@@ -1803,7 +1804,7 @@ BRANCH=""
 if [ -f ${TMP_DIR}/.${P}.done ]; then
     I "already installed ${P}"
 else
-  INSTALL_QGL="yes"
+  #INSTALL_QGL="yes"
   rm -Rf ${INSTALL_DIR}/usr/lib/libQt*
   rm -Rf ${INSTALL_DIR}/usr/include/Qt*
 
@@ -1815,9 +1816,11 @@ else
   && export OPENSOURCE_CXXFLAGS="-D__USE_WS_X11__" \
   && sh configure                                              \
     -v                                                         \
+    -opensource                                                \
     -confirm-license                                           \
     -continue                                                  \
     -release                                                   \
+    -system-zlib                                               \
     -prefix          ${INSTALL_DIR}/usr                                 \
     -docdir          ${INSTALL_DIR}/usr/share/doc/${name}               \
     -examplesdir     ${INSTALL_DIR}/usr/share/${name}/examples          \
@@ -1851,15 +1854,15 @@ else
   || E failed to configure ${P}
   
   # qmake obviously still has some Makefile generation issues..
-  for i in $(find * -name 'Makefile*'); do
-    j=${i}.tmp
-    cat ${i} \
-      | sed \
-        -e 's|-framework\ -framework||g' \
-        -e 's|-framework\ -prebind||g' \
-      > ${j}
-    mv ${j} ${i}    
-  done 
+  #for i in $(find * -name 'Makefile*'); do
+  #  j=${i}.tmp
+  #  cat ${i} \
+  #    | sed \
+  #      -e 's|-framework\ -framework||g' \
+  #      -e 's|-framework\ -prebind||g' \
+  #    > ${j}
+  #  mv ${j} ${i}    
+  #done 
   
   I building ${P} \
   && ${MAKE} \
@@ -1886,12 +1889,17 @@ fi
 # Install qwt
 #
 
-P=qwt-6.1.3
-URL=http://cytranet.dl.sourceforge.net/project/qwt/qwt/6.1.3/qwt-6.1.3.tar.bz2
-CKSUM=sha256:f3ecd34e72a9a2b08422fb6c8e909ca76f4ce5fa77acad7a2883b701f4309733
+V=6.1.4
+P=qwt-${V}
+URL="https://github.com/opencor/qwt/archive/v${V}/${P}.tar.gz"
+CKSUM=sha256:0dd17f246f448c13659d10eb895bb52848c5e77c9c005ba9d47b55e3877d688c
 T=${P}
 BRANCH=""
 
+export INSTALL_DIR=${INSTALL_DIR}
+
+
+INSTALL_ROOT=${INSTALL_DIR} \
 QMAKE_CXX="${CXX}" \
 QMAKE_CXXFLAGS="${CPPFLAGS}" \
 QMAKE_LFLAGS="${LDFLAGS}" \
@@ -1907,9 +1915,10 @@ build_and_install_qmake \
 # Install sip
 #
 
-P=sip-4.19.1
-URL=http://svwh.dl.sourceforge.net/project/pyqt/sip/sip-4.19.1/sip-4.19.1.tar.gz
-CKSUM=sha256:501852b8325349031b769d1c03d6eab04f7b9b97f790ec79f3d3d04bf065d83e
+V=4.19.19
+P=sip-${V}
+URL="https://www.riverbankcomputing.com/static/Downloads/sip/${V}/${P}.tar.gz"
+CKSUM=sha256:5436b61a78f48c7e8078e93a6b59453ad33780f80c644e5f3af39f94be1ede44
 T=${P}
 BRANCH=""
 
@@ -1929,18 +1938,19 @@ else
     --stubsdir=${PYTHONPATH} \
   && ${MAKE} \
   && ${MAKE} install \
-  || E failed to build
+  || E failed to build sip
     
   touch ${TMP_DIR}/.${P}.done
 fi
 
 #
-# Install PyQt4
+# Install PyQt5
 #
 
-P=PyQt4_gpl_x11-4.12
-URL=http://superb-sea2.dl.sourceforge.net/project/pyqt/PyQt4/PyQt-4.12/PyQt4_gpl_x11-4.12.tar.gz
-CKSUM=sha256:3c1d4b55314adb3e1132de8fc2a92eed216d37e58aceed41294dbca210ca88db
+V=5.13.1
+P=PyQt5_gpl-${V}
+URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${V}/${P}.tar.gz"
+CKSUM=sha256:54b7f456341b89eeb3930e786837762ea67f235e886512496c4152ebe106d4af
 T=${P}
 BRANCH=""
 
@@ -1956,13 +1966,16 @@ else
   CXXFLAGS="${CPPFLAGS} $(pkg-config --cflags QtCore QtDesigner QtGui QtOpenGL)" \
   LDFLAGS="$(pkg-config --libs QtCore QtDesigner QtGui QtOpenGL)" \
   ${PYTHON} configure.py \
+    QMAKE_CFLAGS="${CFLAGS}" \
+    QMAKE_LFLAGS="${LDFLAGS}" \
+    QMAKE_CXXFLAGS="${CXXFLAGS}" \
     --confirm-license \
     -b ${INSTALL_DIR}/usr/bin \
     -d ${PYTHONPATH} \
     -v ${INSTALL_DIR}/usr/share/sip \
   && ${MAKE} \
-  && ${MAKE} install \
-  || E failed to build
+  && make install -j1 \
+  || E failed to build pyqt5
     
   touch ${TMP_DIR}/.${P}.done
 fi
@@ -1973,9 +1986,9 @@ fi
 
 P=gnuradio
 URL=git://github.com/gnuradio/gnuradio.git
-CKSUM=git:59daaff0d9d04373d3a6b14ea7b46e080bad7a1e
-T=${P}
 BRANCH=v${GNURADIO_BRANCH}
+CKSUM=${GNURADIO_COMMIT_HASH}
+T=${P}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
@@ -2021,8 +2034,9 @@ fi
 # Install SoapySDR
 #
 
-P=SoapySDR
-URL=https://github.com/pothosware/SoapySDR.git
+V=0.7.1
+P=soapy-sdr-${V}
+URL="https://github.com/pothosware/SoapySDR/archive/${V}.tar.gz"
 CKSUM=git:74f890ce73c58c37df08ea518541d3f49ffefadb
 T=${P}
 BRANCH=soapy-sdr-0.6.0
@@ -2078,8 +2092,9 @@ build_and_install_cmake \
 # Install libhackrf
 #
 
-P=hackrf-2017.02.1
-URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/hackrf-2017.02.1.tar.xz
+V=2018.01.1
+P=hackrf-${P}
+URL="https://github.com/mossmann/hackrf/releases/download/v${V}/hackrf-${P}.tar.xz"
 CKSUM=sha256:1dd1fbec98bf2fa56c92f82fd66eb46801a2248c019c4707b3971bc187cb973a
 T=${P}/host
 
