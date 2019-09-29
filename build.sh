@@ -1,6 +1,7 @@
 #!/bin/sh
 
-GNURADIO_BRANCH=3.7.10.1
+# Currently, we build gnuradio 3.8 for Python3.7.
+GNURADIO_BRANCH=3.8.0.0
 
 # default os x path minus /usr/local/bin, which could have pollutants
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
@@ -10,6 +11,8 @@ EXTS="zip tar.gz tgz tar.bz2 tbz2 tar.xz"
 SKIP_FETCH=true
 SKIP_AUTORECONF=
 SKIP_LIBTOOLIZE=
+KEEP_ON_MISMATCH=
+COPY_HASH_ON_MISMATCH=true
 
 DEBUG=true
 
@@ -58,11 +61,14 @@ RESOURCES_DIR=${CONTENTS_DIR}/Resources
 INSTALL_DIR=${CONTENTS_DIR}/MacOS
 
 MAKE="${MAKE:-"make -j$(ncpus)"}"
-PYTHON=python2.7
 
-PYTHON_FRAMEWORK_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7
+PYTHON_VERSION=3.7
+PYTHON_FRAMEWORK_DIR="/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}"
+PYTHON="${PYTHON_FRAMEWORK_DIR}/Resources/Python.app/Contents/MacOS/Python"
+PYTHON_CONFIG="${PYTHON_FRAMEWORK_DIR}/lib/python3.7/config-3.7m-darwin/python-config.py"
 
-export PYTHONPATH=${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages
+
+export PYTHONPATH=${INSTALL_DIR}/usr/lib/python${PYTHON_VERSION}/site-packages
 export SDLDIR=${INSTALL_DIR}/usr
 
 function check_prerequisites() {
@@ -75,7 +81,7 @@ function check_prerequisites() {
     || E "XQuartz is not installed. Download it at http://www.xquartz.org/"
 
   [[ -d ${PYTHON_FRAMEWORK_DIR} ]] \
-    || E "Python 2.7 is not installed. Download it here: https://www.python.org/downloads/"
+    || E "Python 3.7 is not installed. Download it here: https://www.python.org/downloads/"
 }
 
 function gen_version() {
@@ -152,12 +158,27 @@ function prefix_path_if_not_contained() {
   export PATH=${1}:${PATH}
 }
 
+function handle_hash_mismatch() {
+  local FILETYPE=$(file "${1}")
+
+  # Remove the mismatching file, unless we're explicitly keeping it.
+  [ ${KEEP_ON_MISMATCH} ] || rm -f "${1}"
+
+  # For convenience, copy the hash line to the clipboard, if desired.
+  [ ${COPY_HASH_ON_MISMATCH} ] && (echo "CKSUM=sha256:${3}" | pbcopy)
+
+  # And error out.
+  E "File '${1}' does not match '${2}'.\nActual sha256 is '${3}'.\nFile is of type '${FILETYPE}'." 
+}
+
+
 function verify_sha256() {
   #local FILENAME="${1}"
   #local CKSUM="${2}"
-  test "$(shasum -a 256 -- "${1}" | cut -d' ' -f1)" = "${2}" \
+  local CKSUM="$(shasum -a 256 -- "${1}" | cut -d' ' -f1)"
+  test "${CKSUM}" = "${2}" \
     && D "File '${1}' matches '${2}'" \
-    || E "File '${1}' does not match '${2}'"
+    || handle_hash_mismatch "${1}" "${2}" "${CKSUM}" "sha256"
 }
 
 function verify_git() {
@@ -362,6 +383,75 @@ function build_and_install_cmake() {
   fi
 }
 
+
+function build_and_install_meson() {
+
+  local P=${1}
+  local URL=${2}
+  local CKSUM=${3}
+  local T=${4}
+  local BRANCH=${5}
+
+  if [ "" = "${T}" ]; then
+    T=${P}
+  fi
+
+  if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"    
+  else 
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
+    unpack ${P} ${URL} ${T} ${BRANCH}
+  
+    rm -Rf ${TMP_DIR}/${T}-build \
+    && mkdir ${TMP_DIR}/${T}-build \
+    && cd ${TMP_DIR}/${T} \
+    && AR="/usr/bin/ar" meson --prefix="${INSTALL_DIR}/usr" --buildtype=plain ${TMP_DIR}/${T}-build ${EXTRA_ARGS} \
+    && ninja -v -C ${TMP_DIR}/${T}-build  \
+    && ninja -C ${TMP_DIR}/${T}-build install \
+    || E "failed to build ${P}"
+  
+    I "finished building and installing ${P}"
+
+    touch ${TMP_DIR}/.${P}.done
+  
+  fi
+}
+
+
+function build_and_install_waf() {
+
+  local P=${1}
+  local URL=${2}
+  local CKSUM=${3}
+  local T=${4}
+  local BRANCH=${5}
+
+  if [ "" = "${T}" ]; then
+    T=${P}
+  fi
+
+  if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"    
+  else 
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
+    unpack ${P} ${URL} ${T} ${BRANCH}
+  
+    rm -Rf ${TMP_DIR}/${T}-build \
+    && mkdir ${TMP_DIR}/${T}-build \
+    && cd ${TMP_DIR}/${T} \
+    && ${PYTHON} ./waf configure --prefix="${INSTALL_DIR}" \
+    && ${PYTHON} ./waf build \
+    && ${PYTHON} ./waf install \
+    || E "failed to build ${P}"
+  
+    I "finished building and installing ${P}"
+
+    touch ${TMP_DIR}/.${P}.done
+  
+  fi
+}
+
+
 function build_and_install_setup_py() {
 
   local P=${1}
@@ -429,7 +519,8 @@ function build_and_install_autotools() {
         && autoreconf -if  \
         || E "autoreconf failed for ${P}"
     fi
-  
+
+
     if [[ "" = "${SKIP_LIBTOOLIZE}" && "" != "$(which libtoolize)" ]]; then
       I "Running libtoolize in ${T}"
       cd ${TMP_DIR}/${T} \
@@ -547,6 +638,9 @@ mkdir -p ${BUILD_DIR} ${TMP_DIR} ${INSTALL_DIR}
 
 cd ${TMP_DIR}
 
+# Add the installation sysroot's /usr/bin and /usr/local/bin to our path.
+# We'll use /usr/local to install some of the build-specific tools; and /usr/bin
+# for most of our binaries.
 prefix_path_if_not_contained ${INSTALL_DIR}/usr/bin
 
 #prefix_dyldlibpath_if_not_contained ${INSTALL_DIR}/usr/lib
@@ -573,6 +667,15 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
 [[ $(which ar) = ${INSTALL_DIR}/usr/bin/ar ]] \
   || E "sanity check failed. ar-wrapper is not in PATH"
 
+
+# create a new path for some of our build tools (e.g. new libtool) to reside in
+mkdir -p /usr/local/bin
+
+# Create a symlink that ensures we only ever build with the install python3;
+# and put python3 where things expect it to be.
+ln -s ${PYTHON} ${INSTALL_DIR}/usr/bin/python
+ln -s ${PYTHON} ${INSTALL_DIR}/usr/bin/python3
+
 #
 # Install autoconf
 # 
@@ -592,9 +695,9 @@ CKSUM=sha256:954bd69b391edc12d6a4a51a2dd1476543da5c6bbf05a95b59dc0dd6fd4c2969
 # Install automake
 # 
 
-P=automake-1.15
-URL=http://ftp.gnu.org/gnu/automake/automake-1.15.tar.gz
-CKSUM=sha256:7946e945a96e28152ba5a6beb0625ca715c6e32ac55f2e353ef54def0c8ed924
+P=automake-1.16
+URL=http://ftp.gnu.org/gnu/automake/${P}.tar.gz
+CKSUM=sha256:80da43bb5665596ee389e6d8b64b4f122ea4b92a685b1dbd813cd1f0e0c2d83f
 
 SKIP_AUTORECONF=yes \
 SKIP_LIBTOOLIZE=yes \
@@ -607,48 +710,89 @@ build_and_install_autotools \
 # Install libtool
 # 
 
-  P=libtool-2.4
-  URL=http://mirror.frgl.pw/gnu/libtool/libtool-2.4.tar.xz
-  CKSUM=sha256:afcce660d3dc54c63a0a5ba3cf05272239dc3c54bbeba20f6bad250f9dc007ae
+#  P=libtool-2.4
+#  URL=http://mirror.frgl.pw/gnu/libtool/libtool-2.4.tar.xz
+#  CKSUM=sha256:afcce660d3dc54c63a0a5ba3cf05272239dc3c54bbeba20f6bad250f9dc007ae
+#
+#  SKIP_AUTORECONF=yes \
+#  SKIP_LIBTOOLIZE=yes \
+#  build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${CKSUM}
+#
+##if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+##
+## fetch "${P}" "${URL}" "" "" "${CKSUM}"
+## unpack ${P} ${URL}
+##
+## cd ${TMP_DIR}/${T} \
+##   && ./bootstrap \
+##   && ${MAKE} \
+##   && DESTDIR=${INSTALL_DIR} ${MAKE} install\
+##   || E "failed to build ${P}"
+##
+## touch ${TMP_DIR}/.${P}.done
+##
+##fi
+#
+#if [ -f ${INSTALL_DIR}/usr/bin/libtool ]; then
+#  
+#  # we want libtoolize, but not libtool
+#  # we need Apple libtool for creating static libraries that work on Mac OS X
+#  mv \
+#    ${INSTALL_DIR}/usr/bin/libtool \
+#    ${INSTALL_DIR}/usr/bin/.gnu.libtool \
+#    || ( rm ${TMP_DIR}/.${P}.done; E "failed to replace GNU libtool" )
+#      
+#fi
+#
+#
+# Install newer libtool/libtoolize to /usr/local
+# 
 
-  SKIP_AUTORECONF=yes \
-  SKIP_LIBTOOLIZE=yes \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+P=libtool-2.4.6
+URL="http://gnu.spinellicreations.com/libtool/${P}.tar.xz"
+CKSUM=sha256:7c87a8c2c8c0fc9cd5019e402bed4292462d00a718a7cd5f11218153bf28b26f
 
-if [ -f ${INSTALL_DIR}/usr/bin/libtool ]; then
-  
-  # we want libtoolize, but not libtool
-  # we need Apple libtool for creating static libraries that work on Mac OS X
-  mv \
-    ${INSTALL_DIR}/usr/bin/libtool \
-    ${INSTALL_DIR}/usr/bin/.gnu.libtool \
-    || ( rm ${TMP_DIR}/.${P}.done; E "failed to replace GNU libtool" )
+SKIP_AUTORECONF=yes \
+SKIP_LIBTOOLIZE=yes \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  "" \
+  "" \
+  "./configure --prefix=${INSTALL_DIR}/usr/local"
+
+# we want libtoolize, but not libtool; so we'll copy that from /usr/local
+# we need Apple libtool for creating static libraries that work on Mac OS X
+cp \
+  ${INSTALL_DIR}/usr/local/bin/libtoolize \
+  ${INSTALL_DIR}/usr/bin/libtoolize \
+  || ( rm ${TMP_DIR}/.${P}.done; E "failed to use newe libtoolize" )
       
-fi
 
 #
 # Install gettext
 # 
 
-  P=gettext-0.19.8
-  URL=http://ftp.gnu.org/pub/gnu/gettext/gettext-0.19.8.tar.xz
-  CKSUM=sha256:9c1781328238caa1685d7bc7a2e1dcf1c6c134e86b42ed554066734b621bd12f
-    
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+P=gettext-0.20.1
+URL=http://ftp.gnu.org/pub/gnu/gettext/${P}.tar.xz
+CKSUM=sha256:53f02fbbec9e798b0faaf7c73272f83608e835c6288dd58be6c9bb54624a3800
+
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install xz-utils
 # 
 
-P=xz-5.2.3
-URL=https://tukaani.org/xz/xz-5.2.3.tar.bz2
-CKSUM=sha256:fd9ca16de1052aac899ad3495ad20dfa906c27b4a5070102a2ec35ca3a4740c1
+P=xz-5.2.4
+URL=https://tukaani.org/xz/${P}.tar.bz2
+CKSUM=sha256:3313fd2a95f43d88e44264e6b015e7d03053e681860b0d5d3f9baca79c57b7bf
 
 build_and_install_autotools \
   ${P} \
@@ -673,9 +817,9 @@ build_and_install_autotools \
 # Install pkg-config
 # 
 
-P=pkg-config-0.29.1
-URL=https://pkg-config.freedesktop.org/releases/pkg-config-0.29.1.tar.gz
-CKSUM=sha256:beb43c9e064555469bd4390dcfd8030b1536e0aa103f08d7abf7ae8cac0cb001
+P=pkg-config-0.29.2
+URL=https://pkg-config.freedesktop.org/releases/${P}.tar.gz
+CKSUM=sha256:6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e7d591
 
 EXTRA_OPTS="--with-internal-glib" \
 build_and_install_autotools \
@@ -715,10 +859,10 @@ fi
 # Install Boost
 # 
 
-  P=boost_1_63_0
-  URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/boost_1_63_0.tar.bz2
-  CKSUM=sha256:beae2529f759f6b3bf3f4969a19c2e9d6f0c503edcb2de4a61d1428519fcb3b0
-  T=${P}
+P=boost_1_71_0
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/${P}.tar.bz2
+CKSUM=sha256:d73a8da01e8bf8c7eda40b4c84915071a8c8a0df4a6734537ddde4a8580524ee
+T=${P}
 
 if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
@@ -726,9 +870,11 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
   unpack ${P} ${URL}
 
   cd ${TMP_DIR}/${T} \
-    && sh bootstrap.sh \
+    && sh bootstrap.sh --with-python-version=${PYTHON_VERSION} \
     && ./b2 \
-      -j $(ncpus) \
+      -j $(ncpus)                                  \
+      -sLZMA_LIBRARY_PATH="${INSTALL_DIR}/usr/lib" \
+      -sLZMA_INCLUDE="${INSTALL_DIR}/usr/include"  \
       stage \
     && rsync -avr stage/lib/ ${INSTALL_DIR}/usr/lib/ \
     && rsync -avr boost ${INSTALL_DIR}/usr/include \
@@ -784,18 +930,14 @@ build_and_install_autotools \
 # Install glib
 # 
 
-P=glib-2.51.1
-URL='http://gensho.acc.umu.se/pub/gnome/sources/glib/2.51/glib-2.51.1.tar.xz'
-CKSUM=sha256:1f8e40cde43ac0bcf61defb147326d038310d75d4e50f728f6becfd2a36ac0ac
+V=2.62
+VV=${V}.0
+P=glib-2.62.0
+URL="http://gensho.acc.umu.se/pub/gnome/sources/glib/${V}/${P}.tar.xz"
+CKSUM=sha256:6c257205a0a343b662c9961a58bb4ba1f1e31c82f5c6b909ec741194abc3da10
     
-# mac os x linker seems to grab the /usr/lib version of libpcre rather than ${INSTALL_DIR}/usr/lib
-# hopefully this is just a glib bug and not a systematic failure with
-# the mac linker
-
-SKIP_AUTORECONF=yes \
-SKIP_LIBTOOLIZE=yes \
-EXTRA_OPTS="--with-pcre=internal" \
-build_and_install_autotools \
+EXTRA_OPTS="--disable-cocoa"
+build_and_install_meson \
   ${P} \
   ${URL} \
   ${CKSUM}
@@ -821,7 +963,7 @@ build_and_install_autotools \
   URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
   CKSUM=sha256:7644bc0ee35965d2e146dde31827b8982ed70a58281085fac42869a09764d38c
 
-LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} -config --ldflags)" \
 build_and_install_setup_py \
    ${P} \
    ${URL} \
@@ -831,9 +973,9 @@ build_and_install_setup_py \
 # Install bison
 # 
 
-    P=bison-3.0.4
-    URL='http://ftp.gnu.org/gnu/bison/bison-3.0.4.tar.xz'
-    CKSUM=sha256:a72428c7917bdf9fa93cb8181c971b6e22834125848cf1d03ce10b1bb0716fe1
+    P=bison-3.4.2
+    URL="http://ftp.gnu.org/gnu/bison/${P}.tar.xz"
+    CKSUM=sha256:27d05534699735dc69e86add5b808d6cb35900ad3fd63fa82e3eb644336abfa0
 
   SKIP_AUTORECONF=yes \
   build_and_install_autotools \
@@ -856,30 +998,78 @@ build_and_install_setup_py \
     ${URL} \
     ${CKSUM}
 
+unset EXTRA_OPTS
+
 #
 # Install thrift
 # 
-    P=thrift-0.10.0
-    URL='http://apache.mirror.gtcomm.net/thrift/0.10.0/thrift-0.10.0.tar.gz'
-    CKSUM=sha256:2289d02de6e8db04cbbabb921aeb62bfe3098c4c83f36eec6c31194301efa10b
+#
+#  V=0.12.0
+#  P=thrift-${V}
+#  URL="http://apache.mirror.gtcomm.net/thrift/${V}/${P}.tar.gz"
+#  CKSUM=sha256:c336099532b765a6815173f62df0ed897528a9d551837d627c1f87fadad90428
+#
+#  SKIP_AUTORECONF="true" \
+#  PY_PREFIX="${INSTALL_DIR}/usr" \
+#  CXXFLAGS="${CPPFLAGS}" \
+#  EXTRA_OPTS="--without-perl --without-php --without-qt4 --without-qt5" \
+#  build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${CKSUM}
+#
 
-  PY_PREFIX="${INSTALL_DIR}/usr" \
-  CXXFLAGS="${CPPFLAGS}" \
-  EXTRA_OPTS="--without-perl --without-php" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+#
+# Install ninja
+#
+
+
+V=1.9.0
+P=ninja-${V}
+URL="https://github.com/ninja-build/ninja/archive/v${V}/${P}.tar.gz"
+CKSUM=sha256:5d7ec75828f8d3fd1a0c2f31b5b0cea780cdfe1031359228c428c1a48bfcd5b9
+
+if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+
+ fetch "${P}" "${URL}" "" "" "${CKSUM}"
+ unpack ${P} ${URL}
+
+ # Ninja only produces a single binary; and doesn't really support "installing".
+ # We'll just copy it to /usr/bin.
+ cd ${TMP_DIR}/${P} \
+   && ./configure.py --bootstrap \
+   && cp ninja ${INSTALL_DIR}/usr/bin/ \
+   || E "failed to build ${P}"
+
+ touch ${TMP_DIR}/.${P}.done
+
+fi
+
+
+#
+# Install meson
+# 
+
+V=0.51.2
+P=meson-${V}
+URL="https://github.com/mesonbuild/meson/releases/download/${V}/${P}.tar.gz"
+CKSUM=sha256:23688f0fc90be623d98e80e1defeea92bbb7103bf9336a5f5b9865d36e892d76
+
+build_and_install_setup_py \
+   ${P} \
+   ${URL} \
+   ${CKSUM}
+
 
 #
 # Install orc
 # 
 
-    P=orc-0.4.26
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/orc-0.4.26.tar.xz'
-    CKSUM=sha256:7d52fa80ef84988359c3434e1eea302d077a08987abdde6905678ebcad4fa649
+    P=orc-0.4.30
+    URL="https://gstreamer.freedesktop.org/src/orc/${P}.tar.xz"
+    CKSUM=sha256:ba41b92146a5691cd102eb79c026757d39e9d3b81a65810d2946a1786a1c4972
 
-  build_and_install_autotools \
+  build_and_install_meson \
     ${P} \
     ${URL} \
     ${CKSUM}
@@ -888,54 +1078,59 @@ build_and_install_setup_py \
 # Install Cheetah
 # 
 
-    P=Cheetah-2.4.4
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Cheetah-2.4.4.tar.gz'
-    CKSUM=sha256:be308229f0c1e5e5af4f27d7ee06d90bb19e6af3059794e5fd536a6f29a9b550
+    V=3.2.4
+    P=cheetah3-${V}
+    URL="https://github.com/CheetahTemplate3/cheetah3/archive/${V}/${P}.tar.gz"
+    CKSUM=sha256:32780a2729b7acf1ab4df9b9325b33e4a1aaf7dcae8c2c66e6e83c70499db863
 
-  LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
+  LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
   build_and_install_setup_py \
     ${P} \
     ${URL} \
     ${CKSUM} \
-  && ln -sf ${PYTHONPATH}/${P}-py2.7.egg ${PYTHONPATH}/Cheetah.egg
+  && ln -sf ${PYTHONPATH}/${P}-py3.7.egg ${PYTHONPATH}/Cheetah.egg
+
+
+#
+# Install Cython
+# 
+
+  V=0.29.13
+  P=cython-${V}
+  URL="https://github.com/cython/cython/archive/${V}/${P}.tar.gz"
+  CKSUM=sha256:af71d040fa9fa1af0ea2b7a481193776989ae93ae828eb018416cac771aef07f
+
+  LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
+  build_and_install_setup_py \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+
 
 #
 # Install lxml
 # 
 
-    P=lxml-3.7.3
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/lxml-3.7.3.tar.gz'
-    CKSUM=sha256:aa502d78a51ee7d127b4824ff96500f0181d3c7826e6ee7b800d068be79361c7
+    P=lxml-4.4.1
+    T="${P}"
+    URL="https://github.com/lxml/lxml/archive/${P}.tar.gz"
+    CKSUM=sha256:a735879b25331bb0c8c115e8aff6250469241fbce98bba192142cd767ff23408
 
 LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
   build_and_install_setup_py \
     ${P} \
     ${URL} \
-    ${CKSUM}
-
-#
-# Install pygobject-introspection
-# 
-
-    P=gobject-introspection-1.40.0
-    URL='http://ftp.gnome.org/pub/gnome/sources/gobject-introspection/1.40/gobject-introspection-1.40.0.tar.xz'
-    CKSUM=sha256:96ea75e9679083e7fe39a105e810e2ead2d708abf189a5ba420bfccfffa24e98
-
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+    ${CKSUM} \
+    "lxml-${P}"
 
 #
 # Install libtiff
 #
 
-P=tiff-3.8.2
-URL='http://dl.maptools.org/dl/libtiff/tiff-3.8.2.tar.gz'
-CKSUM=sha256:be88f037080b93ce0a337b2b3ca5e8195f76885deb6c558cc3aa872ee848fc76
+P=tiff-4.0.10
+URL="https://download.osgeo.org/libtiff/${P}.tar.gz"
+CKSUM=sha256:2c52d11ccaf767457db0c46795d9c7d1a8d8f76f68b0b800a3dfe45786b996e4
 
-  SKIP_AUTORECONF=yes \
-  SKIP_LIBTOOLIZE=yes \
   build_and_install_autotools \
     ${P} \
     ${URL} \
@@ -948,14 +1143,17 @@ unset SKIP_LIBTOOLIZE
 # Install png
 # 
 
-P=libpng-1.6.28
-URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libpng-1.6.28.tar.xz'
-CKSUM=sha256:d8d3ec9de6b5db740fefac702c37ffcf96ae46cb17c18c1544635a3852f78f7a
+P=libpng-1.6.37
+URL="https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/${P}.tar.xz"
+CKSUM=sha256:505e70834d35383537b6491e7ae8641f1a4bed1876dbfe361201fc80868d88ca
 
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
 build_and_install_autotools \
   ${P} \
   ${URL} \
   ${CKSUM}
+
 
 #
 # Install jpeg
@@ -980,109 +1178,153 @@ T=jpeg-6b
 # Install pixman
 # 
 
-    P='pixman-0.34.0'
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/pixman-0.34.0.tar.bz2'
-    CKSUM=sha256:39ba3438f3d17c464b0cb8be006dacbca0ab5aee97ebde69fec7ecdbf85794a0
+P='pixman-0.38.4'
+URL="https://www.cairographics.org/releases/${P}.tar.gz"
+CKSUM=sha256:da66d6fd6e40aee70f7bd02e4f8f76fc3f006ec879d346bae6a723025cfbdde7
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install freetype
 # 
 
-    P=freetype-2.7
-    URL='http://mirror.csclub.uwaterloo.ca/nongnu//freetype/freetype-2.7.tar.gz'
-    CKSUM=sha256:7b657d5f872b0ab56461f3bd310bd1c5ec64619bd15f0d8e08282d494d9cfea4
+P=freetype-2.10.1
+URL="http://mirror.csclub.uwaterloo.ca/nongnu//freetype/${P}.tar.gz"
+CKSUM=sha256:3a60d391fd579440561bf0e7f31af2222bc610ad6ce4d9d7bd2165bca8669110
 
-  SKIP_AUTORECONF=yes \
-  SKIP_LIBTOOLIZE=yes \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+SKIP_AUTORECONF=yes \
+SKIP_LIBTOOLIZE=yes \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 
 #
 # Install harfbuzz
 # 
 
-  P=harfbuzz-1.4.3
-  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/harfbuzz-1.4.3.tar.bz2'
-  CKSUM=sha256:838c17400a88a3a451eb401573ef94cdd50919730d98255547c459fef1d85321
+P=harfbuzz-2.6.1
+URL="https://www.freedesktop.org/software/harfbuzz/release/${P}.tar.xz"
+CKSUM=sha256:c651fb3faaa338aeb280726837c2384064cdc17ef40539228d88a1260960844f
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install fontconfig
 # 
 
-  P=fontconfig-2.12.1
-  URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/fontconfig-2.12.1.tar.bz2'
-  CKSUM=sha256:b449a3e10c47e1d1c7a6ec6e2016cca73d3bd68fbbd4f0ae5cc6b573f7d6c7f3
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+P=fontconfig-2.13.1
+URL="https://www.freedesktop.org/software/fontconfig/release/${P}.tar.gz"
+CKSUM=sha256:9f0d852b39d75fc655f9f53850eb32555394f36104a044bb2b2fc9e66dbbfa7f
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install cairo
 # 
 
-    P=cairo-1.14.8
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/cairo-1.14.8.tar.xz'
-    CKSUM=sha256:d1f2d98ae9a4111564f6de4e013d639cf77155baf2556582295a0f00a9bc5e20
+P=zlib-1.2.11
+URL="https://www.zlib.net/${P}.tar.xz"
+CKSUM=sha256:4ff941449631ace0d4d203e3483be9dbc9da454084111f97ea0a2114e19bf066
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+EXTRA_OPTS="" \
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
+
+
+#
+# Install cairo
+# 
+
+P=cairo-1.16.0
+URL="https://www.cairographics.org/releases/${P}.tar.xz"
+CKSUM=sha256:5e7b29b3f113ef870d1e3ecf8adf21f923396401604bda16d44be45e66052331
+
+#png_REQUIRES=libpng16 \
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install pycairo
 # 
 
-    P=py2cairo-1.10.0
-    URL='https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/py2cairo-1.10.0.tar.bz2'
-    CKSUM=sha256:d30439f06c2ec1a39e27464c6c828b6eface3b22ee17b2de05dc409e429a7431
+V=1.18.1
+P=pycairo-${V}
+URL="https://github.com/pygobject/pycairo/releases/download/v${V}/${P}.tar.gz"
+CKSUM=sha256:70172e58b6bad7572a3518c26729b074acdde15e6fee6cbab6d3528ad552b786
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+build_and_install_meson \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
+
+
+#
+# Install pygobject-introspection
+# 
+
+V=1.62
+VV=1.62.0
+P=gobject-introspection-${VV}
+URL="http://ftp.gnome.org/pub/gnome/sources/gobject-introspection/${V}/gobject-introspection-${VV}.tar.xz"
+CKSUM=sha256:b1ee7ed257fdbc008702bdff0ff3e78a660e7e602efa8f211dc89b9d1e7d90a2
+
+build_and_install_meson \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install pygobject
 # 
 
-    P=pygobject-2.28.6
-    URL='http://ftp.gnome.org/pub/GNOME/sources/pygobject/2.28/pygobject-2.28.6.tar.xz'
-    CKSUM=sha256:fb8a1d4f665130a125011659bd347c7339c944232163dbb9a34fd0686577adb8
+V=3.34.0
+P=pygobject-${V}
+URL="https://github.com/GNOME/pygobject/archive/${V}/pygobject-${V}.tar.gz"
+CKSUM=sha256:fe05538639311fe3105d6afb0d7dfa6dbd273338e5dea61354c190604b85cbca
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+build_and_install_meson \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install gdk-pixbuf
 # 
 
-  P=gdk-pixbuf-2.36.4
-  URL='http://muug.ca/mirror/gnome/sources/gdk-pixbuf/2.36/gdk-pixbuf-2.36.4.tar.xz'
-  CKSUM=sha256:0b19901c3eb0596141d2d48ddb9dac79ad1524bdf59366af58ab38fcb9ee7463
+P=gdk-pixbuf-2.36.4
+URL='http://muug.ca/mirror/gnome/sources/gdk-pixbuf/2.36/gdk-pixbuf-2.36.4.tar.xz'
+CKSUM=sha256:0b19901c3eb0596141d2d48ddb9dac79ad1524bdf59366af58ab38fcb9ee7463
 
-  EXTRA_OPTS="--without-libtiff --without-libjpeg" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+EXTRA_OPTS="--without-libtiff --without-libjpeg" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install libatk
@@ -1542,8 +1784,10 @@ fi
 # Install QT
 #
 
-P=qt-x11-opensource-src-4.4.3
-URL=http://mirror.csclub.uwaterloo.ca/qtproject/archive/qt/4.4/qt-x11-opensource-src-4.4.3.tar.gz
+V=5.13
+VV=${V}.1
+P=qt-everywhere-src-${P}.tar.xz
+URL=https://download.qt.io/archive/qt/${V}/${VV}/single/${P}.tar.xz
 CKSUM=sha256:79ea9fb46d75c3759e3e98ab0064a47eaa5bdbbc2a53d923d60bd8e9cd0bc5c6
 T=${P}
 BRANCH=""

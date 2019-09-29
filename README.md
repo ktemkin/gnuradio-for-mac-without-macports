@@ -9,7 +9,7 @@ We only have two requirements that you need to install first
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://www.python.org/static/img/python-logo.png" /></a>
 <a href="https://www.xquartz.org/" target="_blank"><img src="https://www.xquartz.org/Xlogo.png" /></a>
 
-Please download the Python 2.7 release.
+Please download the Python 3.7 release; or install from e.g. Homebrew.
 
 ## Installation
 
