@@ -28,5 +28,5 @@ if [ "${X}" = "yes" ]; then
   exec /usr/bin/ar x ${AR_FILE}
 else
 #  echo "libtool -static -o ${AR_FILE} ${O_FILES}" > /dev/stderr
-  exec libtool -static -o ${AR_FILE} ${O_FILES}
+  exec /usr/bin/libtool -static -o ${AR_FILE} ${O_FILES}
 fi

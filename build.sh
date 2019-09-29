@@ -228,6 +228,7 @@ function fetch() {
   local T=${3}
   local BRANCH=${4}
   local CKSUM=${5}
+  local MVFROM=${6}
 
   I "fetching ${P} from ${URL}"
 
@@ -275,9 +276,19 @@ function unpack() {
   local P=${1}
   local URL=${2}
   local T=${3}
+  local MVFROM="${4}"
+  local NAME="${5}"
 
   if [ "" = "${T}" ]; then
     T=${P}
+  fi
+
+  if [ "" = "${NAME}" ]; then
+    if [ "" = "${MVFROM}" ]; then
+      NAME=${P} 
+    else
+      NAME=${MVFROM}
+    fi
   fi
 
   if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
@@ -288,27 +299,27 @@ function unpack() {
     local Z=
     if [ 1 -eq 0 ]; then
       echo 
-    elif [ -e ${TMP_DIR}/${P}.zip ]; then
-      Z=${P}.zip
+    elif [ -e ${TMP_DIR}/${NAME}.zip ]; then
+      Z=${NAME}.zip
       cmd=unzip
-    elif [ -e ${TMP_DIR}/${P}.tar.gz ]; then
-      Z=${P}.tar.gz
+    elif [ -e ${TMP_DIR}/${NAME}.tar.gz ]; then
+      Z=${NAME}.tar.gz
       cmd=tar
       opts=xpzf
-    elif [ -e ${TMP_DIR}/${P}.tgz ]; then
-      Z=${P}.tgz
+    elif [ -e ${TMP_DIR}/${NAME}.tgz ]; then
+      Z=${NAME}.tgz
       cmd=tar
       opts=xpzf
-    elif [ -e ${TMP_DIR}/${P}.tar.bz2 ]; then
-      Z=${P}.tar.bz2
+    elif [ -e ${TMP_DIR}/${NAME}.tar.bz2 ]; then
+      Z=${NAME}.tar.bz2
       cmd=tar
       opts=xpjf
-    elif [ -e ${TMP_DIR}/${P}.tbz2 ]; then
-      Z=${P}.tbz2
+    elif [ -e ${TMP_DIR}/${NAME}.tbz2 ]; then
+      Z=${NAME}.tbz2
       cmd=tar
       opts=xpjf
-    elif [ -e ${TMP_DIR}/${P}.tar.xz ]; then
-      Z=${P}.tar.xz
+    elif [ -e ${TMP_DIR}/${NAME}.tar.xz ]; then
+      Z=${NAME}.tar.xz
       cmd=tar
       opts=xpJf
     fi
@@ -320,6 +331,10 @@ function unpack() {
     && ${cmd} ${opts} ${Z} \
       || E "failed to extract ${Z}"
 
+  fi
+
+  if [ z"${MVFROM}" != z"" ]; then
+    mv "${TMP_DIR}/${MVFROM}" "${TMP_DIR}/${T}"
   fi
   
   local PATCHES="$(ls -1 ${BUILD_DIR}/patches/${P}-*.patch 2>/dev/null)"
@@ -357,6 +372,7 @@ function build_and_install_cmake() {
   local CKSUM=${3}
   local T=${4}
   local BRANCH=${5}
+  local MVFROM=${6}
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -366,7 +382,7 @@ function build_and_install_cmake() {
     I "already installed ${P}"    
   else 
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T} ${BRANCH}
+    unpack ${P} ${URL} ${T} ${BRANCH} "${MVFROM}"
   
     rm -Rf ${TMP_DIR}/${T}-build \
     && mkdir ${TMP_DIR}/${T}-build \
@@ -391,6 +407,7 @@ function build_and_install_meson() {
   local CKSUM=${3}
   local T=${4}
   local BRANCH=${5}
+  local PATHNAME=${6}
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -399,13 +416,13 @@ function build_and_install_meson() {
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I "already installed ${P}"    
   else 
-    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T} ${BRANCH}
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}" "${PATHNAME}"
+    unpack ${P} ${URL} ${T} ${BRANCH} "${PATHNAME}"
   
     rm -Rf ${TMP_DIR}/${T}-build \
     && mkdir ${TMP_DIR}/${T}-build \
     && cd ${TMP_DIR}/${T} \
-    && AR="/usr/bin/ar" meson --prefix="${INSTALL_DIR}/usr" --buildtype=plain ${TMP_DIR}/${T}-build ${EXTRA_ARGS} \
+    && AR="/usr/bin/ar" meson --prefix="${INSTALL_DIR}/usr" --buildtype=plain ${TMP_DIR}/${T}-build ${EXTRA_OPTS} \
     && ninja -v -C ${TMP_DIR}/${T}-build  \
     && ninja -C ${TMP_DIR}/${T}-build install \
     || E "failed to build ${P}"
@@ -519,7 +536,6 @@ function build_and_install_autotools() {
         && autoreconf -if  \
         || E "autoreconf failed for ${P}"
     fi
-
 
     if [[ "" = "${SKIP_LIBTOOLIZE}" && "" != "$(which libtoolize)" ]]; then
       I "Running libtoolize in ${T}"
@@ -638,9 +654,6 @@ mkdir -p ${BUILD_DIR} ${TMP_DIR} ${INSTALL_DIR}
 
 cd ${TMP_DIR}
 
-# Add the installation sysroot's /usr/bin and /usr/local/bin to our path.
-# We'll use /usr/local to install some of the build-specific tools; and /usr/bin
-# for most of our binaries.
 prefix_path_if_not_contained ${INSTALL_DIR}/usr/bin
 
 #prefix_dyldlibpath_if_not_contained ${INSTALL_DIR}/usr/lib
@@ -668,13 +681,10 @@ cp ${BUILD_DIR}/scripts/ranlib-wrapper.sh ${INSTALL_DIR}/usr/bin/ranlib \
   || E "sanity check failed. ar-wrapper is not in PATH"
 
 
-# create a new path for some of our build tools (e.g. new libtool) to reside in
-mkdir -p /usr/local/bin
-
 # Create a symlink that ensures we only ever build with the install python3;
 # and put python3 where things expect it to be.
-ln -s ${PYTHON} ${INSTALL_DIR}/usr/bin/python
-ln -s ${PYTHON} ${INSTALL_DIR}/usr/bin/python3
+ln -sf ${PYTHON} ${INSTALL_DIR}/usr/bin/python
+ln -sf ${PYTHON} ${INSTALL_DIR}/usr/bin/python3
 
 #
 # Install autoconf
@@ -710,47 +720,6 @@ build_and_install_autotools \
 # Install libtool
 # 
 
-#  P=libtool-2.4
-#  URL=http://mirror.frgl.pw/gnu/libtool/libtool-2.4.tar.xz
-#  CKSUM=sha256:afcce660d3dc54c63a0a5ba3cf05272239dc3c54bbeba20f6bad250f9dc007ae
-#
-#  SKIP_AUTORECONF=yes \
-#  SKIP_LIBTOOLIZE=yes \
-#  build_and_install_autotools \
-#    ${P} \
-#    ${URL} \
-#    ${CKSUM}
-#
-##if [ ! -f ${TMP_DIR}/.${P}.done ]; then
-##
-## fetch "${P}" "${URL}" "" "" "${CKSUM}"
-## unpack ${P} ${URL}
-##
-## cd ${TMP_DIR}/${T} \
-##   && ./bootstrap \
-##   && ${MAKE} \
-##   && DESTDIR=${INSTALL_DIR} ${MAKE} install\
-##   || E "failed to build ${P}"
-##
-## touch ${TMP_DIR}/.${P}.done
-##
-##fi
-#
-#if [ -f ${INSTALL_DIR}/usr/bin/libtool ]; then
-#  
-#  # we want libtoolize, but not libtool
-#  # we need Apple libtool for creating static libraries that work on Mac OS X
-#  mv \
-#    ${INSTALL_DIR}/usr/bin/libtool \
-#    ${INSTALL_DIR}/usr/bin/.gnu.libtool \
-#    || ( rm ${TMP_DIR}/.${P}.done; E "failed to replace GNU libtool" )
-#      
-#fi
-#
-#
-# Install newer libtool/libtoolize to /usr/local
-# 
-
 P=libtool-2.4.6
 URL="http://gnu.spinellicreations.com/libtool/${P}.tar.xz"
 CKSUM=sha256:7c87a8c2c8c0fc9cd5019e402bed4292462d00a718a7cd5f11218153bf28b26f
@@ -763,15 +732,24 @@ build_and_install_autotools \
   ${CKSUM} \
   "" \
   "" \
-  "./configure --prefix=${INSTALL_DIR}/usr/local"
+  "./configure --prefix=${INSTALL_DIR}/usr"
 
-# we want libtoolize, but not libtool; so we'll copy that from /usr/local
-# we need Apple libtool for creating static libraries that work on Mac OS X
-cp \
-  ${INSTALL_DIR}/usr/local/bin/libtoolize \
-  ${INSTALL_DIR}/usr/bin/libtoolize \
-  || ( rm ${TMP_DIR}/.${P}.done; E "failed to use newe libtoolize" )
-      
+
+#
+# Install sed
+# 
+
+P=sed-4.7
+URL=http://ftp.gnu.org/pub/gnu/sed/${P}.tar.xz
+CKSUM=sha256:2885768cd0a29ff8d58a6280a270ff161f6a3deb5690b2be6c49f46d4c67bd6a
+
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
+
 
 #
 # Install gettext
@@ -926,9 +904,12 @@ build_and_install_autotools \
   ${URL} \
   ${CKSUM}
 
+
 #
 # Install glib
 # 
+
+unset EXTRA_OPTS
 
 V=2.62
 VV=${V}.0
@@ -936,11 +917,22 @@ P=glib-2.62.0
 URL="http://gensho.acc.umu.se/pub/gnome/sources/glib/${V}/${P}.tar.xz"
 CKSUM=sha256:6c257205a0a343b662c9961a58bb4ba1f1e31c82f5c6b909ec741194abc3da10
     
-EXTRA_OPTS="--disable-cocoa"
+# Build a dynamic version..
 build_and_install_meson \
   ${P} \
   ${URL} \
   ${CKSUM}
+
+# ... and a static one.
+P=glib-static-${VV}
+EXTRA_OPTS="--default-library static"
+build_and_install_meson \
+  ${P} \
+  ${URL} \
+  ${CKSUM} \
+  "" \
+  "" \
+  "glib-${VV}"
 
 #
 # Install cppunit
@@ -959,11 +951,11 @@ build_and_install_meson \
 # Install mako
 # 
 
-  P=Mako-1.0.3
-  URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
-  CKSUM=sha256:7644bc0ee35965d2e146dde31827b8982ed70a58281085fac42869a09764d38c
+P=Mako-1.0.3
+URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
+CKSUM=sha256:7644bc0ee35965d2e146dde31827b8982ed70a58281085fac42869a09764d38c
 
-LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} -config --ldflags)" \
+LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
 build_and_install_setup_py \
    ${P} \
    ${URL} \
@@ -1209,12 +1201,13 @@ build_and_install_autotools \
 # Install harfbuzz
 # 
 
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
 P=harfbuzz-2.6.1
 URL="https://www.freedesktop.org/software/harfbuzz/release/${P}.tar.xz"
 CKSUM=sha256:c651fb3faaa338aeb280726837c2384064cdc17ef40539228d88a1260960844f
 
-SKIP_AUTORECONF=true \
-SKIP_LIBTOOLIZE=true \
+EXTRA_OPTS="--with-coretext=yes " \
 build_and_install_autotools \
   ${P} \
   ${URL} \
@@ -1260,7 +1253,6 @@ P=cairo-1.16.0
 URL="https://www.cairographics.org/releases/${P}.tar.xz"
 CKSUM=sha256:5e7b29b3f113ef870d1e3ecf8adf21f923396401604bda16d44be45e66052331
 
-#png_REQUIRES=libpng16 \
 SKIP_AUTORECONF=true \
 SKIP_LIBTOOLIZE=true \
 build_and_install_autotools \
@@ -1316,74 +1308,84 @@ build_and_install_meson \
 # Install gdk-pixbuf
 # 
 
-P=gdk-pixbuf-2.36.4
-URL='http://muug.ca/mirror/gnome/sources/gdk-pixbuf/2.36/gdk-pixbuf-2.36.4.tar.xz'
-CKSUM=sha256:0b19901c3eb0596141d2d48ddb9dac79ad1524bdf59366af58ab38fcb9ee7463
+V=2.36
+VV=${V}.6
+P=gdk-pixbuf-${VV}
+URL="http://muug.ca/mirror/gnome/sources/gdk-pixbuf/${V}/${P}.tar.xz"
+CKSUM=sha256:455eb90c09ed1b71f95f3ebfe1c904c206727e0eeb34fc94e5aaf944663a820c
 
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
 EXTRA_OPTS="--without-libtiff --without-libjpeg" \
 build_and_install_autotools \
   ${P} \
   ${URL} \
   ${CKSUM}
 
+unset EXTRA_OPTS
+
 #
 # Install libatk
 # 
 
-  P=ATK_2_22
-  URL='http://git.gnome.org/browse/atk/snapshot/ATK_2_22.tar.xz'
-  CKSUM=sha256:27d4dc33283787e77935ac725aaf4d1bd283feb18898072bfecf61183b71a1b9
+V=2.34
+VV=${V}.1
+P=atk-${VV}
+URL="http://ftp.gnome.org/pub/gnome/sources/atk/${V}/${P}.tar.xz"
+CKSUM=sha256:d4f0e3b3d21265fcf2bc371e117da51c42ede1a71f6db1c834e6976bb20997cb
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+build_and_install_meson \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install pango
 # 
 
-# this is unfortunately the only stage of the build that I have not
-# fully automated.
-# encountering this bug
-# http://groups.google.com/forum/#!topic/bugzillagnometelconnect4688-bugzillagnometelconnect4688/gcf7EtF9icA
+V=1.44
+VV=${V}.6
+P=pango-${VV}
+URL="http://ftp.gnome.org/pub/GNOME/sources/pango/${V}/${P}.tar.xz"
+CKSUM=sha256:3e1e41ba838737e200611ff001e3b304c2ca4cdbba63d200a20db0b0ddc0f86c
 
-#  P=pango-1.40.3
-#  URL=http://ftp.gnome.org/pub/GNOME/sources/pango/1.40/pango-1.40.3.tar.xz
-
-  P=pango-1.39.0
-  URL='http://ftp.gnome.org/pub/GNOME/sources/pango/1.39/pango-1.39.0.tar.xz'
-  CKSUM=sha256:13072ad9e49372d6d7ba7bb3b9b025faef04de3552b745e92d7880eb15d6ee7e
-
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+build_and_install_meson \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install gtk+
 # 
-  P=gtk+-2.24.31
-  URL='http://gemmei.acc.umu.se/pub/gnome/sources/gtk+/2.24/gtk+-2.24.31.tar.xz'
-  CKSUM=sha256:68c1922732c7efc08df4656a5366dcc3afdc8791513400dac276009b40954658
+V=2.24
+VV=${V}.32
+P=gtk+-${VV}
+URL="http://gemmei.acc.umu.se/pub/gnome/sources/gtk+/${V}/${P}.tar.xz"
+CKSUM=sha256:b6c8a93ddda5eabe3bfee1eb39636c9a03d2a56c7b62828b359bf197943c582e
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
-
-#
-# Install pygtk
-# 
-
-    P=pygtk-2.24.0
-    URL='http://ftp.gnome.org/pub/GNOME/sources/pygtk/2.24/pygtk-2.24.0.tar.gz'
-    CKSUM=sha256:6e3e54fa6e65a69ac60bd58cb2e60a57f3346ac52efe995f3d10b6c38c972fd8
-
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
 build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+  ${P} \
+  ${URL} \
+  ${CKSUM}
+
+##
+## Install pygtk
+## 
+#
+#V=2.24
+#VV=${V}.0
+#P=pygtk-${VV}
+#URL="http://ftp.gnome.org/pub/GNOME/sources/pygtk/${V}/${P}.tar.gz"
+#CKSUM=sha256:6e3e54fa6e65a69ac60bd58cb2e60a57f3346ac52efe995f3d10b6c38c972fd8
+#
+#SKIP_AUTORECONF=true \
+#SKIP_LIBTOOLIZE=true \
+#build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${CKSUM}
 
   #ln -sf ${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages/{py,}gtk.py
 
@@ -1391,28 +1393,31 @@ build_and_install_autotools \
 # Install numpy
 # 
 
-  P=numpy-1.11.1
-  URL='http://superb-sea2.dl.sourceforge.net/project/numpy/NumPy/1.11.1/numpy-1.11.1.tar.gz'
-  CKSUM=sha256:dc4082c43979cc856a2bf352a8297ea109ccb3244d783ae067eb2ee5b0d577cd
+V=1.17.2
+P=numpy-${V}
+URL="https://github.com/numpy/numpy/releases/download/v${V}/${P}.tar.gz"
+CKSUM=sha256:81a4f748dcfa80a7071ad8f3d9f8edb9f8bc1f0a9bdd19bfd44fd42c02bd286c
 
-  build_and_install_setup_py \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+build_and_install_setup_py \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install fftw
 # 
 
-  P=fftw-3.3.6-pl1
-  URL='http://www.fftw.org/fftw-3.3.6-pl1.tar.gz'
-  CKSUM=sha256:1ef4aa8427d9785839bc767f3eb6a84fcb5e9a37c31ed77a04e7e047519a183d
+P=fftw-3.3.8
+URL="http://www.fftw.org/${P}.tar.gz"
+CKSUM=sha256:6113262f6e92c5bd474f2875fa1b01054c4ad5040f6b0da7c03c98821d9ae303
 
-  EXTRA_OPTS="--enable-single --enable-sse --enable-sse2 --enable-avx --enable-avx2 --enable-avx-128-fma --enable-generic-simd128 --enable-generic-simd256 --enable-threads" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+EXTRA_OPTS="--enable-single --enable-sse --enable-sse2 --enable-avx --enable-avx2 --enable-avx-128-fma --enable-generic-simd128 --enable-generic-simd256 --enable-threads" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install f2c
@@ -1521,7 +1526,7 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
       || E "build of ${P} failed"; \
     done \
   && I creating libblas.a \
-  && libtool -static -o libblas.a *.o \
+  && /usr/bin/libtool -static -o libblas.a *.o \
   && cp libblas.a ${INSTALL_DIR}/usr/lib/ \
   || E "failed to build and install libblas"  
 
@@ -1561,7 +1566,7 @@ if [ ! -f ${TMP_DIR}/.${P}.done ]; then
   && mkdir -p ${TMP_DIR}/${T}/libcblas \
   && cd ${TMP_DIR}/${T}/libcblas \
   && ar x ${TMP_DIR}/${T}/lib/cblas_LINUX.a \
-  && libtool -static -o ../libcblas.a *.o \
+  && /usr/bin/libtool -static -o ../libcblas.a *.o \
   && cd ${TMP_DIR}/${T} \
   && I installing ${P} to ${INSTALL_DIR}/usr/lib \
   && cp ${TMP_DIR}/${T}/libcblas.* ${INSTALL_DIR}/usr/lib \
@@ -1601,63 +1606,65 @@ fi
 # 
 # XXX: @CF: required by gr-wavelet, depends on cblas
 
-  P=gsl-2.3
-  URL='http://mirror.frgl.pw/gnu/gsl/gsl-2.3.tar.gz'
-  CKSUM=sha256:562500b789cd599b3a4f88547a7a3280538ab2ff4939504c8b4ac4ca25feadfb
+P=gsl-2.6
+URL="http://ftp.wayne.edu/gnu/gsl/${P}.tar.gz"
+CKSUM=sha256:b782339fc7a38fe17689cb39966c4d821236c28018b6593ddb6fd59ee40786a8
 
-  LDFLAGS="${LDFLAGS} -lcblas -lblas -lf2c" \
-  EXTRA_OPTS="" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+LDFLAGS="${LDFLAGS} -lcblas -lblas -lf2c" \
+EXTRA_OPTS="" \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install libusb
 # 
 
-  P=libusb-1.0.21
-  URL='http://fco.it.distfiles.macports.org/mirrors/macports-distfiles/libusb/libusb-1.0.21.tar.gz'
-  CKSUM=sha256:acb5ca3379cecf7bf53901b8e98192723909f696af04bd63fca0cfafec5b057c
-  T=libusb-libusb-09e75e9
+V=1.0.23
+P=libusb-${V}
+URL="https://github.com/libusb/libusb/releases/download/v${V}/${P}.tar.bz2"
+CKSUM=sha256:db11c06e958a82dac52cf3c65cb4dd2c3f339c8a988665110e0d24d19312ad8d
 
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM} \
-    ${T}
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install uhd
 #
 
-  P=uhd
-  URL=git://github.com/EttusResearch/uhd.git
-  CKSUM=git:25fc32af6585fcbb23ff8d89d0a88c76bc21b3b3
-  T=${P}
-  BRANCH=master
+V=3.14.1.1
+P=uhd-${V}
+URL="https://github.com/EttusResearch/uhd/archive/v${V}/${P}.tar.gz"
+CKSUM=sha256:8cbcb22d12374ceb2859689b1d68d9a5fa6bd5bd82407f66952863d5547d27d0
+BRANCH=master
 
-  EXTRA_OPTS="-DENABLE_E300=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${T}/host" \
-  build_and_install_cmake \
-    ${P} \
-    ${URL} \
-    ${CKSUM} \
-    ${T} \
-    ${BRANCH}
+EXTRA_OPTS="-DENABLE_E300=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${P}/host" \
+build_and_install_cmake \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # install SDL
 #
 
-  EXTRA_OPTS=""
+EXTRA_OPTS=""
 
-  P=SDL-1.2.15
-  URL=https://www.libsdl.org/release/SDL-1.2.15.tar.gz
-  CKSUM=sha256:d6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00
-  T=${P}
+P=SDL-1.2.15
+URL=https://www.libsdl.org/release/SDL-1.2.15.tar.gz
+CKSUM=sha256:d6d316a793e5e348155f0dd93b979798933fb98aa1edebcc108829d6474aad00
+T=${P}
 
 LDFLAGS="${LDFLAGS} -framework CoreFoundation -framework CoreAudio -framework CoreServices -L/usr/X11R6/lib -lX11" \
 SKIP_AUTORECONF="yes" \
+SKIP_LIBTOOLIZE="yes" \
 build_and_install_autotools \
   ${P} \
   ${URL} \
@@ -1702,83 +1709,83 @@ build_and_install_autotools \
 # Get wx widgets
 #
 
-P=wxWidgets-3.0.2
-URL='http://pkgs.fedoraproject.org/repo/pkgs/wxGTK3/wxWidgets-3.0.2.tar.bz2/md5/ba4cd1f3853d0cd49134c5ae028ad080/wxWidgets-3.0.2.tar.bz2'
-CKSUM=sha256:346879dc554f3ab8d6da2704f651ecb504a22e9d31c17ef5449b129ed711585d
-T=${P}
-
-  SKIP_AUTORECONF=yes \
-  SKIP_LIBTOOLIZE=yes \
-  EXTRA_OPTS="--with-gtk --enable-utf8only" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
-
+#V=3.1.2
+#P=wxWidgets-${V}
+#URL="https://github.com/wxWidgets/wxWidgets/releases/download/v${V}/${P}.tar.bz2"
+#CKSUM=sha256:4cb8d23d70f9261debf7d6cfeca667fc0a7d2b6565adb8f1c484f9b674f1f27a
 #
-# install wxpython
+#SKIP_AUTORECONF=yes \
+#SKIP_LIBTOOLIZE=yes \
+#EXTRA_OPTS="--with-gtk --enable-utf8only" \
+#build_and_install_autotools \
+#  ${P} \
+#  ${URL} \
+#  ${CKSUM}
 #
-
-  P=wxPython-src-3.0.2.0
-  URL=http://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
-  CKSUM=sha256:d54129e5fbea4fb8091c87b2980760b72c22a386cb3b9dd2eebc928ef5e8df61
-  T=${P}
-  BRANCH=""
-
-  if [ -f ${TMP_DIR}/.${P}.done ]; then
-    I "already installed ${P}"    
-  else 
-
-  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-  unpack ${P} ${URL} ${T}
-
-  _extra_cflags="$(pkg-config --cflags gtk+-2.0) $(pkg-config --cflags libgdk-x11) $(pkg-config --cflags x11)"
-  _extra_libs="$(pkg-config --libs gtk+-2.0) $(pkg-config --libs gdk-x11-2.0) $(pkg-config --libs x11)"
-
-  D "Configuring and building in ${T}"
-  cd ${TMP_DIR}/${T}/wxPython \
-    && \
-      CC=${CXX} \
-      CFLAGS="${CPPFLAGS} ${_extra_cflags} ${CFLAGS}" \
-      CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
-      LDFLAGS="${LDFLAGS} ${_extra_libs}" \
-      ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 build \
-    && \
-      CC=${CXX} \
-      CFLAGS="${CPPFLAGS} ${_extra_cflags} ${CFLAGS}" \
-      CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
-      LDFLAGS="${LDFLAGS} ${_extra_libs}" \
-      ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 install \
-        --prefix="${INSTALL_DIR}/usr" \
-    && D "copying wx.pth to ${PYTHONPATH}/wx.pth" \
-    && cp \
-       ${TMP_DIR}/${T}/wxPython/src/wx.pth \
-       ${PYTHONPATH} \
-    || E "failed to build and install ${P}"
-
-  I "finished building and installing ${P}"
-  
-  touch ${TMP_DIR}/.${P}.done
-
-fi
+##
+## install wxpython
+##
+#
+#  P=wxPython-src-3.0.2.0
+#  URL=http://svwh.dl.sourceforge.net/project/wxpython/wxPython/3.0.2.0/wxPython-src-3.0.2.0.tar.bz2
+#  CKSUM=sha256:d54129e5fbea4fb8091c87b2980760b72c22a386cb3b9dd2eebc928ef5e8df61
+#  T=${P}
+#  BRANCH=""
+#
+#  if [ -f ${TMP_DIR}/.${P}.done ]; then
+#    I "already installed ${P}"    
+#  else 
+#
+#  fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
+#  unpack ${P} ${URL} ${T}
+#
+#  _extra_cflags="$(pkg-config --cflags gtk+-2.0) $(pkg-config --cflags libgdk-x11) $(pkg-config --cflags x11)"
+#  _extra_libs="$(pkg-config --libs gtk+-2.0) $(pkg-config --libs gdk-x11-2.0) $(pkg-config --libs x11)"
+#
+#  D "Configuring and building in ${T}"
+#  cd ${TMP_DIR}/${T}/wxPython \
+#    && \
+#      CC=${CXX} \
+#      CFLAGS="${CPPFLAGS} ${_extra_cflags} ${CFLAGS}" \
+#      CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
+#      LDFLAGS="${LDFLAGS} ${_extra_libs}" \
+#      ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 build \
+#    && \
+#      CC=${CXX} \
+#      CFLAGS="${CPPFLAGS} ${_extra_cflags} ${CFLAGS}" \
+#      CXXFLAGS="${CPPFLAGS} ${_extra_cflags} ${CXXFLAGS}" \
+#      LDFLAGS="${LDFLAGS} ${_extra_libs}" \
+#      ${PYTHON} setup.py WXPORT=gtk2 ARCH=x86_64 install \
+#        --prefix="${INSTALL_DIR}/usr" \
+#    && D "copying wx.pth to ${PYTHONPATH}/wx.pth" \
+#    && cp \
+#       ${TMP_DIR}/${T}/wxPython/src/wx.pth \
+#       ${PYTHONPATH} \
+#    || E "failed to build and install ${P}"
+#
+#  I "finished building and installing ${P}"
+#  
+#  touch ${TMP_DIR}/.${P}.done
+#
+#fi
 
 #
 # Install rtl-sdr
 #
 
-  P=rtl-sdr
-  URL=git://git.osmocom.org/rtl-sdr
-  CKSUM=git:df9596b2d1ebd36cdb14549cfdd76c25092e14d0
-  T=${P}
-  BRANCH=18bf26989c926a5db4fca29e7d859af42af1437c
+V=0.6.0
+P=rtl-sdr-"${V}"
+URL="https://github.com/osmocom/rtl-sdr/archive/${V}/${P}.tar.gz"
+CKSUM=sha256:ee10a76fe0c6601102367d4cdf5c26271e9442d0491aa8df27e5a9bf639cff7c
 
-  LDFLAGS="${LDFLAGS} $(python-config --ldflags)" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM} \
-    ${T} \
-    ${BRANCH}
+EXTRA_OPTS="" \
+LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
+SKIP_AUTORECONF=true \
+SKIP_LIBTOOLIZE=true \
+build_and_install_autotools \
+  ${P} \
+  ${URL} \
+  ${CKSUM}
 
 #
 # Install QT
@@ -1786,9 +1793,10 @@ fi
 
 V=5.13
 VV=${V}.1
-P=qt-everywhere-src-${P}.tar.xz
+P=qt-everywhere-src-${VV}
 URL=https://download.qt.io/archive/qt/${V}/${VV}/single/${P}.tar.xz
-CKSUM=sha256:79ea9fb46d75c3759e3e98ab0064a47eaa5bdbbc2a53d923d60bd8e9cd0bc5c6
+URL="https://download.qt.io/official_releases/qt/${V}/${VV}/single/${P}.tar.xz"
+CKSUM=sha256:adf00266dc38352a166a9739f1a24a1e36f1be9c04bf72e16e142a256436974e
 T=${P}
 BRANCH=""
 
