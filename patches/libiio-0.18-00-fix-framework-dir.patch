@@ -1,0 +1,115 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d9b7ea1..476d476 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -34,11 +34,6 @@ endif()
+ 
+ set(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries")
+ 
+-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+-	option(OSX_PACKAGE "Create a OSX package" ON)
+-	set(CMAKE_MACOSX_RPATH ON)
+-	set(SKIP_INSTALL_ALL ${OSX_PACKAGE})
+-endif()
+ 
+ option(WITH_NETWORK_BACKEND "Enable the network backend" ON)
+ option(WITH_TESTS "Build the test programs" ON)
+@@ -348,7 +343,7 @@ if(NOT SKIP_INSTALL_ALL)
+ 		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+ 		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+ 		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+-		FRAMEWORK DESTINATION /Library/Frameworks
++		FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
+ 		PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+ endif()
+ 
+@@ -387,50 +382,6 @@ else()
+ 	message(STATUS "Doxygen not found, API documentation won't be generated")
+ endif()
+ 
+-# Create an installer if compiling for OSX
+-if(OSX_PACKAGE)
+-	set(LIBIIO_PKG ${CMAKE_CURRENT_BINARY_DIR}/libiio-${VERSION}.g${LIBIIO_VERSION_GIT}.pkg)
+-	set(LIBIIO_TEMP_PKG ${CMAKE_CURRENT_BINARY_DIR}/libiio-${VERSION}-temp.pkg)
+-	set(LIBIIO_DISTRIBUTION_XML ${CMAKE_CURRENT_BINARY_DIR}/Distribution.xml)
+-	set(LIBIIO_FRAMEWORK_DIR ${CMAKE_CURRENT_BINARY_DIR}/iio.framework)
+-	configure_file(Distribution.xml.cmakein ${LIBIIO_DISTRIBUTION_XML} @ONLY)
+-
+-	find_program(PKGBUILD_EXECUTABLE
+-		NAMES pkgbuild
+-		DOC "OSX Package builder (pkgbuild)")
+-	mark_as_advanced(PKGBUILD_EXECUTABLE)
+-
+-	find_program(PRODUCTBUILD_EXECUTABLE
+-		NAMES productbuild
+-		DOC "OSX Package builder (productbuild)")
+-	mark_as_advanced(PRODUCTBUILD_EXECUTABLE)
+-
+-	foreach(_tool ${IIO_TESTS_TARGETS})
+-		list(APPEND IIO_TESTS $<TARGET_FILE:${_tool}>)
+-	endforeach()
+-
+-	add_custom_command(OUTPUT ${LIBIIO_PKG}
+-		COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBIIO_FRAMEWORK_DIR}/Tools
+-		COMMAND ${CMAKE_COMMAND} -E copy ${IIO_TESTS} ${LIBIIO_FRAMEWORK_DIR}/Tools
+-		COMMAND ${PKGBUILD_EXECUTABLE}
+-			--component ${LIBIIO_FRAMEWORK_DIR}
+-			--identifier com.adi.iio --version ${VERSION}
+-			--install-location /Library/Frameworks ${LIBIIO_TEMP_PKG}
+-		COMMAND ${PRODUCTBUILD_EXECUTABLE}
+-			--distribution ${LIBIIO_DISTRIBUTION_XML} ${LIBIIO_PKG}
+-		COMMAND ${CMAKE_COMMAND} -E remove ${LIBIIO_TEMP_PKG}
+-		DEPENDS iio ${IIO_TESTS_TARGETS} ${LIBIIO_DISTRIBUTION_XML}
+-	)
+-
+-	if (PKGBUILD_EXECUTABLE AND PRODUCTBUILD_EXECUTABLE)
+-		add_custom_target(libiio-pkg ALL DEPENDS ${LIBIIO_PKG})
+-
+-		install(CODE "execute_process(COMMAND /usr/sbin/installer -pkg ${LIBIIO_PKG} -target /)")
+-	else()
+-		message(WARNING "Missing pkgbuild or productbuild: OSX installer won't be created.")
+-	endif()
+-endif()
+-
+ if(WITH_IIOD)
+ 	option(WITH_SYSTEMD "Enable installation of systemd service file for iiod" OFF)
+ 	set(SYSTEMD_UNIT_INSTALL_DIR /lib/systemd/system CACHE PATH "default install path for systemd unit files")
+@@ -449,21 +400,6 @@ if(WITH_IIOD)
+ 	endif()
+ endif()
+ 
+-if (NOT OSX_PACKAGE)
+-	# Support creating some basic binpkgs via `make package`.
+-	# Disabled if OSX_PACKAGE is enabled, as tarballs would end up empty otherwise.
+-	option(ENABLE_PACKAGING "Create .deb/.rpm or .tar.gz packages via 'make package'" OFF)
+-
+-	if(ENABLE_PACKAGING)
+-		if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+-			include(cmake/DarwinPackaging.cmake)
+-		endif()
+-		if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+-			include(cmake/LinuxPackaging.cmake)
+-		endif()
+-	endif()
+-endif()
+-
+ if (WITH_USB_BACKEND AND CMAKE_SYSTEM_NAME MATCHES "^Linux")
+ 	option(INSTALL_UDEV_RULE "Install a udev rule for detection of USB devices" ON)
+ 
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index e734e1d..0c36ae6 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -49,11 +49,7 @@ set_target_properties(${IIO_TESTS_TARGETS} PROPERTIES
+ )
+ 
+ if(NOT SKIP_INSTALL_ALL)
+-	if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+-		install(TARGETS ${IIO_TESTS_TARGETS} RUNTIME DESTINATION /Library/Frameworks/iio.framework/Tools)
+-	else()
+-		install(TARGETS ${IIO_TESTS_TARGETS} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+-	endif()
++	install(TARGETS ${IIO_TESTS_TARGETS} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+ endif()
+ 
+ # Make the test targets available to the main CMakeLists.txt

@@ -1,0 +1,16 @@
+diff --git a/configure.py b/configure.py
+index d893ae8..6b3ee00 100644
+--- a/configure.py
++++ b/configure.py
+@@ -3138,6 +3138,11 @@ def main(argv):
+     # Tell the user what's been found.
+     inform_user(target_config, sip_version)
+ 
++    target_config.qmake_variables.append('QMAKE_CFLAGS += ' + os.environ['CFLAGS'])
++    target_config.qmake_variables.append('QMAKE_CXXFLAGS += ' + os.environ['CXXFLAGS'])
++    target_config.qmake_variables.append('QMAKE_LFLAGS += ' + os.environ['LDFLAGS'])
++
++
+     # Generate the makefiles.
+     generate_makefiles(target_config, opts.verbose,
+             opts.split if opts.concat else 0, opts.tracing,

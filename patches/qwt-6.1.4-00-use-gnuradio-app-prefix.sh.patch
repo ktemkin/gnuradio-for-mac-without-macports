@@ -1,0 +1,1 @@
+sed -i orig -e 's,^\([[:space:]]*QWT_INSTALL_PREFIX[[:space:]]*=[[:space:]]*\)\([^[:space:]].*\)$,\1'"${INSTALL_DIR}"'/usr,' qwtconfig.pri || true

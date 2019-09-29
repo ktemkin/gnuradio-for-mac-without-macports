@@ -1,0 +1,11 @@
+diff --git a/qwtconfig.pri b/qwtconfig.pri
+index 623d734..b9fe515 100644
+--- a/qwtconfig.pri
++++ b/qwtconfig.pri
+@@ -171,5 +171,5 @@ macx:!static:CONFIG(qt_framework, qt_framework|qt_no_framework) {
+ 
+ unix {
+ 
+-    #QWT_CONFIG     += QwtPkgConfig
++    QWT_CONFIG     += QwtPkgConfig
+ }

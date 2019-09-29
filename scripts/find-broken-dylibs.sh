@@ -28,6 +28,13 @@ function find_bad_deps() {
       bad_deps+="${d} "
       continue
     fi
+
+    # pulled in libraries from e.g. Homebrew or Macports
+    if [ "/usr/local" == "${d:0:10}" ] && [ "/usr/local/opt/python" != ${d:0:21} ]; then
+      bad_deps+="${d} "
+      continue
+    fi
+
   done
   
   echo "${bad_deps}"
