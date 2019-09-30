@@ -895,7 +895,7 @@ index 9a9e621..1f475b4 100644
    subdir('xdgmime')
    internal_deps += [xdgmime_lib]
 diff --git a/glib/meson.build b/glib/meson.build
-index 91a48f1..44d0ad6 100644
+index 91a48f1..1d869fd 100644
 --- a/glib/meson.build
 +++ b/glib/meson.build
 @@ -316,10 +316,6 @@ else
@@ -909,6 +909,39 @@ index 91a48f1..44d0ad6 100644
  glib_sources += files('gthread-@0@.c'.format(threads_implementation))
  
  if enable_dtrace
+@@ -358,7 +354,7 @@ libglib = library('glib-2.0',
+   include_directories : configinc,
+   dependencies : pcre_deps + [thread_dep, libintl, librt] + libiconv + platform_deps + gnulib_libm_dependency,
+   c_args : glib_c_args,
+-  objc_args : glib_c_args,
++  objc_args : glib_c_args
+ )
+ 
+ libglib_dep = declare_dependency(
+@@ -463,3 +459,4 @@ build_tests = not meson.is_cross_build() or (meson.is_cross_build() and meson.ha
+ if build_tests
+   subdir('tests')
+ endif
++
+diff --git a/gmodule/meson.build b/gmodule/meson.build
+index d38ad2d..640ba20 100644
+--- a/gmodule/meson.build
++++ b/gmodule/meson.build
+@@ -13,12 +13,11 @@ if host_system == 'windows'
+ # dlopen() filepath must be of the form /path/libname.a(libname.so)
+ elif host_system == 'aix'
+   g_module_impl = 'G_MODULE_IMPL_AR'
+-# NSLinkModule (dyld) in system libraries (Darwin)
++elif have_dlopen_dlsym
++  g_module_impl = 'G_MODULE_IMPL_DL'
+ elif cc.has_function('NSLinkModule')
+   g_module_impl = 'G_MODULE_IMPL_DYLD'
+   g_module_need_uscore = 1
+-elif have_dlopen_dlsym
+-  g_module_impl = 'G_MODULE_IMPL_DL'
+ endif
+ 
+ # additional checks for G_MODULE_IMPL_DL
 diff --git a/meson.build b/meson.build
 index 717d1bc..2d0ad2b 100644
 --- a/meson.build
