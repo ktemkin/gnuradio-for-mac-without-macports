@@ -1,7 +1,8 @@
 #!/bin/sh
 
 XQUARTZ_APP_DIR=/Applications/Utilities/XQuartz.app
-PYTHON_FRAMEWORK_DIR=/System/Library/Frameworks/Python.framework/Versions/2.7
+PYTHON_FRAMEWORK_DIR="/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}"
+PYTHON="${PYTHON_FRAMEWORK_DIR}/Resources/Python.app/Contents/MacOS/Python"
 
 set -e
 
@@ -56,10 +57,10 @@ fi
 if ! test -d ${PYTHON_FRAMEWORK_DIR} ; then
     osascript \
         -e 'on run(argv)' \
-        -e 'display dialog ("Python 2.7 is not installed. Download it here: https://www.python.org/downloads/") buttons {"OK"} default button 1 with icon stop with title "GNU Radio Companion"' \
+        -e 'display dialog ("Python 3.7 is not installed. Download it here: https://www.python.org/downloads/") buttons {"OK"} default button 1 with icon stop with title "GNU Radio Companion"' \
         -e 'end run' \
         > /dev/null 2>&1 || true
-    printf 'Python 2.7 is not installed. Download it here: https://www.python.org/downloads/\n' 1>&2
+    printf 'Python 3.7 is not installed. Download it here: https://www.python.org/downloads/\n' 1>&2
 fi
 
 if ! test -e "${grenv_path}" ; then
