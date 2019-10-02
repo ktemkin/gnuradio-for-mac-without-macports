@@ -554,9 +554,6 @@ function build_and_install_autotools() {
     touch ${TMP_DIR}/.${P}.done
     
   fi
-  
-  unset SKIP_AUTORECONF
-  unset SKIP_LIBTOOLIZE
 }
 
 function build_and_install_qmake() {
@@ -590,9 +587,35 @@ function build_and_install_qmake() {
     touch ${TMP_DIR}/.${P}.done
     
   fi
-  
-  unset SKIP_AUTORECONF
-  unset SKIP_LIBTOOLIZE
+}
+
+function replace_bad_dylib_paths() {
+
+  # Grab a set of files that could be our messed-up libraries.
+  potential_files=$(find . -perm "+111" -type f || true)
+
+  # Iterate over our files... 
+  for file in $potential_files; do
+
+      # Grab a list of library paths that may have issues.
+      # Note that this works even for files that aren't libraries; as they just report "not an object file".
+      otool_paths=$(otool -L ${file} || true)
+
+      # Check each of the paths for @rpath, and then replace it accordingly.
+      for path in $otool_paths; do
+
+        # Check to see if the path contains the problematic @rpath.
+        if [[ $path == *"@rpath"* ]]; then
+
+          # Grab the rpath section of the otool output.
+          original_path=$(echo $path | cut -d ' ' -f 1)
+          new_path=${original_path/@rpath/"${INSTALL_DIR}/usr/lib"}
+
+          install_name_tool -change "${original_path}" "${new_path}" ${file}
+        fi
+
+      done
+  done
 }
 
 #function create_icns_via_cairosvg() {
@@ -2001,7 +2024,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
       && cd src/opengl \
       && ${MAKE} \
       && ${MAKE} install \
-      || E "failed to install qgl"
+      || E "failed to install qgl$"
     fi
 
     touch ${TMP_DIR}/.${P}.done
@@ -2089,9 +2112,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I already installed ${P}
   else
-    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T} ${BRANCH}
-    
+    #fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
+    #unpack ${P} ${URL} ${T} ${BRANCH}
+
     # Build and install PyQt5. Note that install fails if parallel'd, due to an
     # install / metadata generation race condition.
     (
@@ -2109,16 +2132,25 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
       export CXXFLAGS="${CXXFLAGS} $(${PYTHON_CONFIG} --cflags)"
       export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
-      ${PYTHON} configure.py \
-        INSTALL_ROOT="" \
-        --confirm-license \
-        -b ${INSTALL_DIR}/usr/bin \
-        -d ${PYTHONPATH} \
-        -v ${INSTALL_DIR}/usr/share/sip \
-        --sysroot ${INSTALL_DIR}
+      # Configure the build, and generate the relevant makefiles.
+      #${PYTHON} configure.py \
+      #  INSTALL_ROOT="" \
+      #  --confirm-license \
+      #  -b ${INSTALL_DIR}/usr/bin \
+      #  -d ${PYTHONPATH} \
+      #  -v ${INSTALL_DIR}/usr/share/sip \
+      #  --sysroot ${INSTALL_DIR}
 
-      ${MAKE}
+      # QMake stubbornly generates Makefiles that try to use runtime-specified locations. We don't want this.
+      #find . \( -name '*.mk' -o -name "Makefile" \) -exec sed -i 's|@executable_path|/Applications/GNURadio.app/Contents/MacOS/usr/lib|g' '{}' \;
+      #find . \( -name '*.mk' -o -name "Makefile" \) -exec sed -i 's|@loader_path|/Applications/GNURadio.app/Contents/MacOS/usr/lib|g' '{}' \;
+
+      #${MAKE}
+      I "patching up library paths for ${P}"
+      replace_bad_dylib_paths
       make install -j1
+      exit 1
+
 
     ) || E failed to build pyqt5
       
