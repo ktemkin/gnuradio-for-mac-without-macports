@@ -2,6 +2,9 @@
 set -e
 trap 'echo E: build failed with error on ${LINENO}; exit 1' ERR
 
+# Ensure our subshells inherit our "set -e".
+export SHELLOPTS
+
 # Currently, we build gnuradio 3.8 for Python3.7.
 GNURADIO_BRANCH=3.8.0.0
 GNURADIO_COMMIT_HASH=git:4cc4c74c10411235fb36de58be09022c5573dbd8
@@ -71,6 +74,9 @@ PYTHON_VERSION=3.7
 PYTHON_FRAMEWORK_DIR="/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}"
 PYTHON="${PYTHON_FRAMEWORK_DIR}/Resources/Python.app/Contents/MacOS/Python"
 PYTHON_CONFIG="${PYTHON_FRAMEWORK_DIR}/lib/python3.7/config-3.7m-darwin/python-config.py"
+INSTALL_LIB_DIR="${INSTALL_DIR}/usr/lib"
+INSTALL_PYTHON_DIR="${INSTALL_LIB_DIR}/python${PYTHON_VERSION}/site-packages"
+INSTALL_GNURADIO_PYTHON_DIR="${INSTALL_DIR}/usr/share/gnuradio/python/site-packages"
 
 
 export PYTHONPATH=${INSTALL_DIR}/usr/lib/python${PYTHON_VERSION}/site-packages
@@ -374,6 +380,8 @@ function build_and_install_cmake() {
   local BRANCH=${5}
   local MVFROM=${6}
 
+  export -n SHELLOPTS
+
   if [ "" = "${T}" ]; then
     T=${P}
   fi
@@ -384,13 +392,19 @@ function build_and_install_cmake() {
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T} "${MVFROM}"
   
-    rm -Rf ${TMP_DIR}/${T}-build \
-    && mkdir ${TMP_DIR}/${T}-build \
-    && cd ${TMP_DIR}/${T}-build \
-    && cmake ${EXTRA_OPTS} \
-    && ${MAKE} \
-    && ${MAKE} install \
-    || E "failed to build ${P}"
+    # Create our working directory, and build things there.
+    (
+      set -e
+
+      rm -Rf ${TMP_DIR}/${T}-build
+      mkdir ${TMP_DIR}/${T}-build
+      cd ${TMP_DIR}/${T}-build
+
+      # Configure and make.
+      cmake ${EXTRA_OPTS}
+      ${MAKE}
+      ${MAKE} install
+    ) || E "failed to build ${P}"
   
     I "finished building and installing ${P}"
 
@@ -407,6 +421,8 @@ function build_and_install_meson() {
   local T=${4}
   local BRANCH=${5}
   local PATHNAME=${6}
+
+  export -n SHELLOPTS
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -442,6 +458,8 @@ function build_and_install_waf() {
   local T=${4}
   local BRANCH=${5}
 
+  export -n SHELLOPTS
+
   if [ "" = "${T}" ]; then
     T=${P}
   fi
@@ -476,6 +494,8 @@ function build_and_install_setup_py() {
   local T=${4}
   local BRANCH=${5}
 
+  export -n SHELLOPTS
+
   if [ "" = "${T}" ]; then
     T=${P}
   fi
@@ -504,6 +524,7 @@ function build_and_install_setup_py() {
   fi
 }
 
+
 function build_and_install_autotools() {
 
   local P=${1}
@@ -512,6 +533,8 @@ function build_and_install_autotools() {
   local T=${4}
   local BRANCH=${5}
   local CONFIGURE_CMD=${6}
+
+  export -n SHELLOPTS
   
   if [ "" = "${CONFIGURE_CMD}" ]; then
     CONFIGURE_CMD="./configure --prefix=${INSTALL_DIR}/usr"
@@ -556,6 +579,7 @@ function build_and_install_autotools() {
   fi
 }
 
+
 function build_and_install_qmake() {
 
   local P=${1}
@@ -563,6 +587,8 @@ function build_and_install_qmake() {
   local CKSUM=${3}
   local T=${4}
   local BRANCH=${5}
+
+  export -n SHELLOPTS
   
   if [ "" = "${T}" ]; then
     T=${P}
@@ -589,33 +615,77 @@ function build_and_install_qmake() {
   fi
 }
 
+
+#
+# Function that replaces malformed/bad dylib paths with fully-resolved one.
+# Many of these tools require extensive patching to get @rpaths to be generated
+# correctly on macOS. Instead of carrying around a huge patch weight, we'll taken
+# on the Cursed (TM) solution of manually resolving the dylib paths ourselves.
+#
 function replace_bad_dylib_paths() {
+(	
+  set -e
+
+  local new_working_directory=${1}
+
+
+  # If we have a directory to apply to, CD to it first.
+  if [ "" != "${new_working_directory}" ]; then
+    cd ${new_working_directory}
+  fi
+
 
   # Grab a set of files that could be our messed-up libraries.
-  potential_files=$(find . -perm "+111" -type f || true)
+  potential_files=$(find . -perm "+111" -type f)
+  potential_files="${potential_files} "$(find . -name "*so")
+  potential_files="${potential_files} "$(find . -name "*dylib")
 
   # Iterate over our files... 
   for file in $potential_files; do
+
+      # Grab the file's type...
+      file_type=$(file ${file})
+
+
+      # ... and skip the file if it's not a Mach-O library.
+      if [[ ${file_type} != *"Mach-O 64-bit"* ]]; then
+        continue
+      fi
+
 
       # Grab a list of library paths that may have issues.
       # Note that this works even for files that aren't libraries; as they just report "not an object file".
       otool_paths=$(otool -L ${file} || true)
 
       # Check each of the paths for @rpath, and then replace it accordingly.
+      IFS=$'\n'
       for path in $otool_paths; do
 
-        # Check to see if the path contains the problematic @rpath.
+        # Grab the path section of the otool output.
+        original_path=$(echo $path | cut -d ' ' -f 1 | tr -d '[:space:]:')
+
+        # Replace the problematic section of any @rpath-containing lines with a correct prefix.
         if [[ $path == *"@rpath"* ]]; then
-
-          # Grab the rpath section of the otool output.
-          original_path=$(echo $path | cut -d ' ' -f 1)
           new_path=${original_path/@rpath/"${INSTALL_DIR}/usr/lib"}
+          D Replacing @rpath references in "${P} (${original_path} -> ${new_path}"
+          install_name_tool -change "${original_path}" "${new_path}" ${file}
+        fi
 
+        # If the path doesn't start with "/", it's relative. We'll assueme the relevant
+        # library is in our standard library path, and add that as a prefix.
+        if [[ ${original_path} != "/"* ]]; then
+          new_path="${INSTALL_DIR}/usr/lib/${original_path}"
+          
+          # Remove a leading "./" in the relevant path, for cleanliness.
+          new_path=$(echo ${new_path} | sed "s|\\./||")
+
+          D Replacing relative references in "${P} (${original_path} -> ${new_path}"
           install_name_tool -change "${original_path}" "${new_path}" ${file}
         fi
 
       done
   done
+)
 }
 
 #function create_icns_via_cairosvg() {
@@ -712,7 +782,8 @@ fi
 
 if [ "${1}" == "python" ]; then
   I "Running an in-environment python shell."
-  ${PYTHON}
+  shift
+  ${PYTHON} "$@"
   exit 0
 fi
 
@@ -1590,6 +1661,80 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 
 #
+# Install intltool, which is necessary to install GTK3 themes.
+# 
+(
+  V=0.40
+  VV=${V}.0
+  P=intltool-${VV}
+  URL="http://ftp.gnome.org/pub/gnome/sources/intltool/${V}/${P}.tar.gz"
+  CKSUM=sha256:386cc0c23ef629c7c0679f6ddc6f0f4df9baa6c4fdf1ca75b2c12ea233e6f152
+
+  SKIP_AUTORECONF=true \
+  SKIP_LIBTOOLIZE=true \
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+
+#
+# Install icon-naming-utils, which is necessary to install GTK3 themes.
+# 
+(
+  V=0.8.90
+  P=icon-naming-utils-${V}
+  URL="http://tango.freedesktop.org/releases/${P}.tar.bz2"
+  CKSUM=sha256:b1378679df4485b4459f609a3304238b3e92d91e43744c47b70abbe690d883d5
+
+  SKIP_AUTORECONF=true \
+  SKIP_LIBTOOLIZE=true \
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+
+#
+# Install the hicolor GTK icon theme.
+# 
+(
+  V=0.17
+  P=hicolor-icon-theme-${V}
+  URL="https://icon-theme.freedesktop.org/releases/hicolor-icon-theme-${V}.tar.xz"
+  CKSUM=sha256:317484352271d18cbbcfac3868eab798d67fff1b8402e740baa6ff41d588a9d8
+
+  SKIP_AUTORECONF=true \
+  SKIP_LIBTOOLIZE=true \
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+
+#
+# Install the primary gnome GTK icon theme.
+# 
+(
+  V=3.12
+  VV=${V}.0
+  P=gnome-icon-theme-${VV}
+  URL="https://ftp.gnome.org/pub/GNOME/sources/gnome-icon-theme/${V}/${P}.tar.xz"
+  CKSUM=sha256:359e720b9202d3aba8d477752c4cd11eced368182281d51ffd64c8572b4e503a
+
+  SKIP_AUTORECONF=true \
+  SKIP_LIBTOOLIZE=true \
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+
+#
 # Install numpy
 # 
 (
@@ -2088,6 +2233,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
       -e ${INSTALL_DIR}/usr/include \
       -v ${INSTALL_DIR}/usr/share/sip \
       --stubsdir=${PYTHONPATH} \
+      --sip-module=PyQt5.sip \
     && ${MAKE} \
     && ${MAKE} install \
     || E failed to build sip
@@ -2101,10 +2247,13 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 #
 
 (
-  V=5.13.1
+  # For now, we'll need to use a development snapshot until issues with PyQt5 and SIP are resolved
+  # in a stable release.
+  V=5.13.2.dev1910041539
   P=PyQt5_gpl-${V}
-  URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${V}/${P}.tar.gz"
-  CKSUM=sha256:54b7f456341b89eeb3930e786837762ea67f235e886512496c4152ebe106d4af
+  #URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${V}/${P}.tar.gz"
+  URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${P}.tar.gz" # development snapshot URL
+  CKSUM=sha256:58922339044840e168443bf0654944a9ea9e9ee3574283fb26c778bd09f79de5
   T=${P}
   BRANCH=""
 
@@ -2112,12 +2261,11 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I already installed ${P}
   else
-    #fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    #unpack ${P} ${URL} ${T} ${BRANCH}
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
+    unpack ${P} ${URL} ${T} ${BRANCH}
 
-    # Build and install PyQt5. Note that install fails if parallel'd, due to an
-    # install / metadata generation race condition.
-    (
+    ## Build and install PyQt5. Note that install fails if parallel'd, due to an
+    ## install / metadata generation race condition.
       cd ${TMP_DIR}/${T}
       set -e
 
@@ -2133,30 +2281,25 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
       export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
       # Configure the build, and generate the relevant makefiles.
-      #${PYTHON} configure.py \
-      #  INSTALL_ROOT="" \
-      #  --confirm-license \
-      #  -b ${INSTALL_DIR}/usr/bin \
-      #  -d ${PYTHONPATH} \
-      #  -v ${INSTALL_DIR}/usr/share/sip \
-      #  --sysroot ${INSTALL_DIR}
+      ${PYTHON} configure.py \
+        INSTALL_ROOT="" \
+        --confirm-license \
+        -b ${INSTALL_DIR}/usr/bin \
+        -d ${PYTHONPATH} \
+        -v ${INSTALL_DIR}/usr/share/sip \
+        --sysroot ${INSTALL_DIR} \
 
       # QMake stubbornly generates Makefiles that try to use runtime-specified locations. We don't want this.
       #find . \( -name '*.mk' -o -name "Makefile" \) -exec sed -i 's|@executable_path|/Applications/GNURadio.app/Contents/MacOS/usr/lib|g' '{}' \;
       #find . \( -name '*.mk' -o -name "Makefile" \) -exec sed -i 's|@loader_path|/Applications/GNURadio.app/Contents/MacOS/usr/lib|g' '{}' \;
 
-      #${MAKE}
-      I "patching up library paths for ${P}"
-      replace_bad_dylib_paths
+      ${MAKE}
       make install -j1
-      exit 1
 
+      touch ${TMP_DIR}/.${P}.done
 
-    ) || E failed to build pyqt5
-      
-    touch ${TMP_DIR}/.${P}.done
-  fi
-)
+fi
+) || E "failed to build Qt5"
 
 #
 # Install six
@@ -2239,8 +2382,6 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     # Pull down the relevant version of Volk.
     git submodule update --init  
 
-    rm -f ${TMP_DIR}/.${P}.done
-
     PYTHONPATH=${PYTHONPATH} \
     EXTRA_OPTS="\
       -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
@@ -2261,13 +2402,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
       ${URL} \
       ${CKSUM} \
       ${T} \
-      ${BRANCH}
-    #&& \
-    #for i in $(find ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages -name '*.so'); do \
-    #  ln -sf ${i} ${INSTALL_DIR}/usr/lib; \
-    #done
+      ${BRANCH} \
 
-      touch ${TMP_DIR}/.${P}.done
+    touch ${TMP_DIR}/.${P}.done
   fi
 )
 
@@ -2378,6 +2515,36 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     ${T} \
     ${BRANCH}
 )
+
+
+#
+# Finish off the installation by correcting any issues produced by e.g.
+# incompatibilities in our various install scripts. These hacks are a bit
+# cursed, but they make things work without having an Even More Cursed weight
+# of dozens of patches.
+#
+(
+  P=post-build-fixes
+  DONE=${TMP_DIR}/.${P}.done
+
+  if [ ! -f ${DONE} ]; then
+
+    I Performing post-build fixups...
+
+    # If any of our libraries have wound up installed with library references that
+    # aren't compatibile with MacOS (e.g. @rpath references or relative paths), fix them
+    # up using the MacOS utility that exists 
+    I "Fixing up any broken dylib references that exist... "
+    replace_bad_dylib_paths ${INSTALL_LIB_DIR}
+    replace_bad_dylib_paths ${INSTALL_GNURADIO_PYTHON_DIR}
+
+    # Mark this package as complete.
+    #touch ${DONE}
+
+  fi
+)
+
+
 
 #
 # Install libairspy
