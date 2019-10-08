@@ -8,22 +8,24 @@ Note that this version contains some major changes from GNURadio 3.7: the WX UI 
 and, per the end-of-life of Python 2.x, we now are intended to run off of GNURadio 3.8.
 
 Built with backend support for:
-	* Airspy (via osmosdr and soapy)
-	* AirspyHF (via soapy)
-	* BladeRF (via osmosdr and soapy; bitstreams included)
-	* HackRF (via osmosdr and soapy)
-	* LimeSDR (via gr-limesdr and soapy)
-	* NetSDR (via soapy)
-	* Pluto SDR (via soapy)
-	* Red Pitaya (via osmosdr and soapy)
-	* RTLSDR (via osmosdr and soapy)
-	* UHD/USRP (via osmosdr and soapy)
+
+* Airspy (via osmosdr and soapy)
+* AirspyHF (via soapy)
+* BladeRF (via osmosdr and soapy; bitstreams included)
+* HackRF (via osmosdr and soapy)
+* LimeSDR (via gr-limesdr and soapy)
+* NetSDR (via soapy)
+* Pluto SDR (via soapy)
+* Red Pitaya (via osmosdr and soapy)
+* RTLSDR (via osmosdr and soapy)
+* UHD/USRP (via osmosdr and soapy)
 
 Currently tested platforms include:
-    * BladeRF
-	* HackRF
-	* LimeSDR
-	* RTLSDR
+
+* BladeRF
+* HackRF
+* LimeSDR
+* RTLSDR
 
 
 If you've successfully tested one of the other backends, feel free to PR an addition to this list. :)
