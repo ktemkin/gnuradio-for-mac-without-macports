@@ -2,6 +2,12 @@
 set -e
 trap 'echo E: build failed with error on ${LINENO}; exit 1' ERR
 
+#
+# TODO:
+#    - we're probably missing libjpeg-9
+#    - we're probably missing libunistring
+#
+
 # Ensure our subshells inherit our "set -e".
 export SHELLOPTS
 
@@ -74,6 +80,7 @@ PYTHON_VERSION=3.7
 PYTHON_FRAMEWORK_DIR="/Library/Frameworks/Python.framework/Versions/${PYTHON_VERSION}"
 PYTHON="${PYTHON_FRAMEWORK_DIR}/Resources/Python.app/Contents/MacOS/Python"
 PYTHON_CONFIG="${PYTHON_FRAMEWORK_DIR}/lib/python3.7/config-3.7m-darwin/python-config.py"
+INSTALL_LIB_DIR="${INSTALL_DIR}/usr/lib"
 INSTALL_LIB_DIR="${INSTALL_DIR}/usr/lib"
 INSTALL_PYTHON_DIR="${INSTALL_LIB_DIR}/python${PYTHON_VERSION}/site-packages"
 INSTALL_GNURADIO_PYTHON_DIR="${INSTALL_DIR}/usr/share/gnuradio/python/site-packages"
@@ -296,6 +303,8 @@ function unpack() {
     fi
   fi
 
+  D "Looking for an archive matching '${NAME}."
+
   if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
     I "git repository has been refreshed"
   else
@@ -339,7 +348,6 @@ function unpack() {
   fi
 
   if [ z"${MVFROM}" != z"" ]; then
-    I "moving; as MVFROM=${MVFROM}"
     mv "${TMP_DIR}/${MVFROM}" "${TMP_DIR}/${T}"
   fi
   
@@ -372,6 +380,7 @@ function unpack() {
 }
 
 function build_and_install_cmake() {
+  set -e
 
   local P=${1}
   local URL=${2}
@@ -379,6 +388,7 @@ function build_and_install_cmake() {
   local T=${4}
   local BRANCH=${5}
   local MVFROM=${6}
+  local NAME=${7}
 
   export -n SHELLOPTS
 
@@ -390,7 +400,7 @@ function build_and_install_cmake() {
     I "already installed ${P}"    
   else 
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T} "${MVFROM}"
+    unpack ${P} ${URL} "${T}" "${MVFROM}" "${NAME}"
   
     # Create our working directory, and build things there.
     (
@@ -414,6 +424,7 @@ function build_and_install_cmake() {
 
 
 function build_and_install_meson() {
+  set -e
 
   local P=${1}
   local URL=${2}
@@ -451,6 +462,7 @@ function build_and_install_meson() {
 
 
 function build_and_install_waf() {
+  set -e
 
   local P=${1}
   local URL=${2}
@@ -487,6 +499,7 @@ function build_and_install_waf() {
 
 
 function build_and_install_setup_py() {
+  set -e
 
   local P=${1}
   local URL=${2}
@@ -526,6 +539,7 @@ function build_and_install_setup_py() {
 
 
 function build_and_install_autotools() {
+  set -e
 
   local P=${1}
   local URL=${2}
@@ -581,6 +595,7 @@ function build_and_install_autotools() {
 
 
 function build_and_install_qmake() {
+  set -e
 
   local P=${1}
   local URL=${2}
@@ -615,6 +630,33 @@ function build_and_install_qmake() {
   fi
 }
 
+#
+# Function that builds and installs a given SoapySDR plugin as needed.
+#
+function install_soapy_plugin_if_needed() {
+  P=Soapy${1}
+  COMMIT=${2}
+  EXTRA_ARGS=${3}
+  URL="git://github.com/pothosware/${P}.git"
+
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON3_EXECUTABLE=$(which ${PYTHON}) \
+    -DPYTHON3_CONFIG_EXECUTABLE=${PYTHON_CONFIG} \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${EXTRA_ARGS} \
+    ${TMP_DIR}/${P}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    git:${COMMIT} \
+    ${P} \
+    ${COMMIT}
+}
+
 
 #
 # Function that replaces malformed/bad dylib paths with fully-resolved one.
@@ -636,9 +678,7 @@ function replace_bad_dylib_paths() {
 
 
   # Grab a set of files that could be our messed-up libraries.
-  potential_files=$(find . -perm "+111" -type f)
-  potential_files="${potential_files} "$(find . -name "*so")
-  potential_files="${potential_files} "$(find . -name "*dylib")
+  potential_files=$(find . -name '*.dylib' -o -name '*.so' -o \( -perm "+111" -type f \))
 
   # Iterate over our files... 
   for file in $potential_files; do
@@ -646,12 +686,10 @@ function replace_bad_dylib_paths() {
       # Grab the file's type...
       file_type=$(file ${file})
 
-
       # ... and skip the file if it's not a Mach-O library.
       if [[ ${file_type} != *"Mach-O 64-bit"* ]]; then
         continue
       fi
-
 
       # Grab a list of library paths that may have issues.
       # Note that this works even for files that aren't libraries; as they just report "not an object file".
@@ -660,14 +698,15 @@ function replace_bad_dylib_paths() {
       # Check each of the paths for @rpath, and then replace it accordingly.
       IFS=$'\n'
       for path in $otool_paths; do
+        name=$(basename ${path})
 
         # Grab the path section of the otool output.
         original_path=$(echo $path | cut -d ' ' -f 1 | tr -d '[:space:]:')
 
         # Replace the problematic section of any @rpath-containing lines with a correct prefix.
-        if [[ $path == *"@rpath"* ]]; then
+        if [[ $path == *"@rpath"* ]] || [[ $path == "@rpath"* ]]; then
           new_path=${original_path/@rpath/"${INSTALL_DIR}/usr/lib"}
-          D Replacing @rpath references in "${P} (${original_path} -> ${new_path}"
+          D Replacing @rpath references in "${name} (${original_path} -> ${new_path}"
           install_name_tool -change "${original_path}" "${new_path}" ${file}
         fi
 
@@ -679,7 +718,7 @@ function replace_bad_dylib_paths() {
           # Remove a leading "./" in the relevant path, for cleanliness.
           new_path=$(echo ${new_path} | sed "s|\\./||")
 
-          D Replacing relative references in "${P} (${original_path} -> ${new_path}"
+          D Replacing relative references in "${name} (${original_path} -> ${new_path}"
           install_name_tool -change "${original_path}" "${new_path}" ${file}
         fi
 
@@ -775,6 +814,8 @@ if [ "${1}" == "shell" ]; then
   export PYTHONPATH="${PYTHONPATH}:${INSTALL_DIR}/usr/share/gnuradio/python/site-packages/"
   export XDG_DATA_DIRS="${INSTALL_DIR}/usr/share"
 
+  export -n SHELLOPTS
+
   cd ${TMP_DIR}
   bash
   exit 0
@@ -798,6 +839,25 @@ if [ "${1}" == "grc" ]; then
   exit 0
 fi
 
+
+if [ "${1}" == "post-build" ]; then
+  I "Clearing the completion status of our post-build tasks."
+  rm -f ${TMP_DIR}/.post-build-fixes.done
+fi
+
+
+if [ "${1}" == "rebuild" ]; then
+  I "Rebuilding any packages called ${2}."
+  rm -f ${TMP_DIR}/.${2}.done
+fi
+
+
+if [ "${1}" == "hard-rebuild" ]; then
+  I "Clean rebuilding any packages called ${2}."
+  rm -f  ${TMP_DIR}/.${2}.done
+  rm -rf ${TMP_DIR}/${2}
+  rm -rf ${TMP_DIR}/${2}-build
+fi
 
 # install wrappers for ar and ranlib, which prevent autotools from working
 mkdir -p ${INSTALL_DIR}/usr/bin \
@@ -890,6 +950,22 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     ${CKSUM}
 )
 
+#
+# Install libunistring
+#
+(
+  V=0.9.10
+  P=libunistring-${V}
+  URL=http://ftp.gnu.org/pub/gnu/libunistring/${P}.tar.xz
+  CKSUM=sha256:eb8fb2c3e4b6e2d336608377050892b54c3c983b646c561836550863003c05d7
+
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+
 
 #
 # Install gettext
@@ -898,6 +974,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   P=gettext-0.20.1
   URL=http://ftp.gnu.org/pub/gnu/gettext/${P}.tar.xz
   CKSUM=sha256:53f02fbbec9e798b0faaf7c73272f83608e835c6288dd58be6c9bb54624a3800
+
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
 
   build_and_install_autotools \
     ${P} \
@@ -1306,6 +1385,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL="https://github.com/lxml/lxml/archive/${P}.tar.gz"
   CKSUM=sha256:a735879b25331bb0c8c115e8aff6250469241fbce98bba192142cd767ff23408
 
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
+
   LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
   build_and_install_setup_py \
     ${P} \
@@ -1314,19 +1396,23 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     "lxml-${P}"
 )
 
+
+
 #
 # Install libtiff
 #
-
 (
   P=tiff-4.0.10
   URL="https://download.osgeo.org/libtiff/${P}.tar.gz"
   CKSUM=sha256:2c52d11ccaf767457db0c46795d9c7d1a8d8f76f68b0b800a3dfe45786b996e4
 
-    build_and_install_autotools \
-      ${P} \
-      ${URL} \
-      ${CKSUM}
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
+
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
 )
 
 
@@ -1351,10 +1437,11 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 # Install jpeg
 #
 (
-  P=jpegsrc.v6b
-  URL=http://mirror.csclub.uwaterloo.ca/slackware/slackware-8.1/source/ap/ghostscript/jpegsrc.v6b.tar.gz
-  CKSUM=sha256:75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d
-  T=jpeg-6b
+  V=9c
+  P=jpegsrc.v${V}
+  URL=http://ijg.org/files/jpegsrc.v${V}.tar.gz
+  CKSUM=sha256:650250979303a649e21f87b5ccd02672af1ea6954b911342ea491f351ceb7122
+  T=jpeg-${V}
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
@@ -1997,20 +2084,47 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 
 #
-# Install uhd
+# Install python requests
 #
 (
-  V=3.14.1.1
-  P=uhd-${V}
-  URL="https://github.com/EttusResearch/uhd/archive/v${V}/${P}.tar.gz"
-  CKSUM=sha256:8cbcb22d12374ceb2859689b1d68d9a5fa6bd5bd82407f66952863d5547d27d0
-  BRANCH=master
+  V=2.22.0
+  P=requests-${V}
+  URL="https://github.com/psf/requests/archive/v${V}/${P}.tar.gz"
+  CKSUM=sha256:dcacea1b6a7bfd2cbb6c6a05743606b428f2739f37825e41fbf79af3cc2fd240
 
-  EXTRA_OPTS="-DENABLE_E300=ON -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr ${TMP_DIR}/${P}/host" \
-  build_and_install_cmake \
+  build_and_install_setup_py \
     ${P} \
     ${URL} \
     ${CKSUM}
+)
+
+
+#
+# Install uhd (the USRP driver).
+# Note that we need to build from git, as the latest release doesn't have python3 support.
+#
+(
+  P=uhd
+  URL=git://github.com/EttusResearch/uhd.git
+  CKSUM=git:18bc320dc3348346255ab0d33aa319fb2618d7b3
+  BRANCH=18bc320dc3348346255ab0d33aa319fb2618d7b3
+
+  EXTRA_OPTS="\
+    -DENABLE_E300=ON \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=${PYTHON} \
+    '-DCMAKE_C_FLAGS=-framework Python' \
+    '-DCMAKE_CXX_FLAGS=-framework Python' \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    -DUHD_SYS_CONF_FILE=${INSTALL_DIR}/etc/uhd/uhd.conf
+    -DBoost_NO_BOOST_CMAKE=ON \
+    ${TMP_DIR}/${P}/host" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${P} \
+    ${BRANCH}
 )
 
 
@@ -2289,10 +2403,6 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
         -v ${INSTALL_DIR}/usr/share/sip \
         --sysroot ${INSTALL_DIR} \
 
-      # QMake stubbornly generates Makefiles that try to use runtime-specified locations. We don't want this.
-      #find . \( -name '*.mk' -o -name "Makefile" \) -exec sed -i 's|@executable_path|/Applications/GNURadio.app/Contents/MacOS/usr/lib|g' '{}' \;
-      #find . \( -name '*.mk' -o -name "Makefile" \) -exec sed -i 's|@loader_path|/Applications/GNURadio.app/Contents/MacOS/usr/lib|g' '{}' \;
-
       ${MAKE}
       make install -j1
 
@@ -2376,6 +2486,8 @@ fi
 
   if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
+    export -n SHELLOPTS
+
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T}
 
@@ -2395,6 +2507,8 @@ fi
       -DSPHINX_EXECUTABLE=${INSTALL_DIR}/usr/bin/rst2html-2.7.py \
       -DCMAKE_FIND_ROOT_PATH=${INSTALL_DIR};${INSTALL_DIR}/usr;${PYTHON_FRAMEWORK_DIR}  \
       -DGR_PYTHON_DIR=${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
+      -DBoost_NO_BOOST_CMAKE=ON \
+      -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON \
       ${TMP_DIR}/${T} \
     " \
     build_and_install_cmake \
@@ -2408,20 +2522,28 @@ fi
   fi
 )
 
+
 #
 # Install SoapySDR
 #
 (
   V=0.7.1
   P=soapy-sdr-${V}
-  URL="https://github.com/pothosware/SoapySDR/archive/${P}.tar.gz"
+  URL="https://github.com/pothosware/SoapySDR/archive/${P}/${P}.tar.gz"
   CKSUM=sha256:5445fbeb92f1322448bca3647f8cf12cc53d31ec6e0f11e0a543bacf43c8236d
   MVFROM="SoapySDR-${P}"
   
   export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
-  EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib "
-  EXTRA_OPTS="${EXTRA_OPTS} -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${P}"
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON3_EXECUTABLE=$(which ${PYTHON}) \
+    -DPYTHON3_CONFIG_EXECUTABLE=${PYTHON_CONFIG} \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${P}"
 
   build_and_install_cmake \
     ${P} \
@@ -2429,8 +2551,10 @@ fi
     ${CKSUM} \
     ${P} \
     "" \
-    ${MVFROM}
+    ${MVFROM} \
+    ${P}
 )
+
 
 #
 # Install LimeSuite
@@ -2443,10 +2567,15 @@ fi
 
   export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
-  EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib" 
-  EXTRA_OPTS="${EXTRA_OPTS} -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON})"
-  EXTRA_OPTS="${EXTRA_OPTS} -DENABLE_GUI=off -DENABLE_QUICKTEST=off ${TMP_DIR}/${P}"
-
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DENABLE_GUI=off \
+    -DENABLE_QUICKTEST=off \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${P}" \
   build_and_install_cmake \
     ${P} \
     ${URL} \
@@ -2465,10 +2594,13 @@ fi
 
   export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
-  EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib "
-  EXTRA_OPTS="${EXTRA_OPTS} DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON})"
-  EXTRA_OPTS="${EXTRA_OPTS} ${TMP_DIR}/${T}"
-
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}" \
   build_and_install_cmake \
     ${P} \
     ${URL} \
@@ -2487,9 +2619,13 @@ fi
   CKSUM=sha256:a89badc09a1d2fa18367b3b2c974580ad5f6ce93aaa4e54557dc3d013c029d14
   T=${P}/host
 
-  EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib "
-  EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" "
-  EXTRA_OPTS="${EXTRA_OPTS} ${TMP_DIR}/${T}"
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}"
   build_and_install_cmake \
     ${P} \
     ${URL} \
@@ -2507,7 +2643,190 @@ fi
   T=${P}/host
   BRANCH=2019.07
 
-  EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}" \
+
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${T} \
+    ${BRANCH}
+)
+
+
+#
+# Install libairspy
+#
+(
+  V=1.0.9
+  P=airspy-${V}
+  URL="https://github.com/airspy/airspyone_host/archive/v${V}/${P}.tar.gz"
+  CKSUM=sha256:967ef256596d4527b81f007f77b91caec3e9f5ab148a8fec436a703db85234cc
+  MVFROM="airspyone_host-${V}"
+
+  EXTRA_OPTS="\
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${P}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${P} \
+    "" \
+    ${MVFROM} \
+    ${P}
+)
+
+
+#
+# Install libairspy
+#
+(
+  V=1.1.5
+  P=airspyhf-${V}
+  URL="https://github.com/airspy/airspyhf/archive/${V}/${P}.tar.gz"
+  CKSUM=sha256:270c332e16677469d7644053e4905106ef0aa52f0da10fd9f22cca05fe1dd2ef
+
+  EXTRA_OPTS="\
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${P}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${P}
+)
+
+
+#
+# Install libiio
+#
+(
+  V=0.18
+  P=libiio-${V}
+  URL="https://github.com/analogdevicesinc/libiio/archive/v${V}/${P}.tar.gz"
+  CKSUM=sha256:bc2c5299974b65cfe9aa4a06d8c74d7651594e026bce416db48a2c5aa7ba2554
+
+  export DESTDIR=""
+
+  EXTRA_OPTS="\
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    -DOSX_PACKAGE=OFF \
+    -DENABLE_PACKAGING=OFF \
+    -DWITH_DOC=OFF \
+    -DWITH_TESTS=OFF \
+    ${TMP_DIR}/${P}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${P}
+)
+
+
+
+
+##
+## Install libmirisdr
+## FIXME: should this be uprev'd?
+##
+#(
+#  P=libmirisdr
+#  URL=git://git.osmocom.org/libmirisdr.git
+#  CKSUM=git:59ba3721b1cb7c746503d8de9c918f54fe7e8399
+#  T=${P}
+#  BRANCH=master
+#
+#  SKIP_AUTORECONF=true \
+#  SKIP_LIBTOOLIZE=true \
+#  build_and_install_autotools \
+#    ${P} \
+#    ${URL} \
+#    ${CKSUM} \
+#    ${T} \
+#    ${BRANCH}
+#)
+
+#
+# Install gr-osmosdr
+#
+(
+  P=gr-osmosdr
+  URL=git://github.com/igorauad/gr-osmosdr # Use an alternate tree until upstream catches up with GNUradio 3.8 support.
+  CKSUM=git:f3905d3510dfb3851f946f097a9e2ddaa5fb333b
+  BRANCH=f3905d3510dfb3851f946f097a9e2ddaa5fb333b
+  T=${P}
+
+  LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DBoost_NO_BOOST_CMAKE=ON \
+    -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON \
+    -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${T} \
+    ${BRANCH}
+)
+
+
+#
+# Install our supported Soapy plugins.
+#
+install_soapy_plugin_if_needed "BladeRF"   "1c1e8aaba5e8ee154b34c6c3b17743d1c9b9a1ea"
+install_soapy_plugin_if_needed "HackRF"    "3c514cecd3dd2fdf4794aebc96c482940c11d7ff"
+install_soapy_plugin_if_needed "RTLSDR"    "5c5d9503337c6d1c34b496dec6f908aab9478b0f"
+install_soapy_plugin_if_needed "UHD"       "7371e688fa3b0b444df948d5492ab93d0988eda8"
+install_soapy_plugin_if_needed "Airspy"    "99756be5c3413a2d447baf70cb5a880662452655"
+install_soapy_plugin_if_needed "AirspyHF"  "a76abd9f16458513fa8aebfae58a09a4b8daaf1e"
+install_soapy_plugin_if_needed "NetSDR"    "11f80b326c9ae23536f5246dffa8320f7dafbcb7"
+install_soapy_plugin_if_needed "RedPitaya" "3d576f83b3bde52104b2a88150516ca8c9a78c7a"
+install_soapy_plugin_if_needed "PlutoSDR" "e28e4f5c68c16a38c0b50b9606035f3267a135c8" \
+  "-DLIBIIO_INCLUDE_DIR=${INSTALL_DIR}/usr/lib/iio.framework/Versions/0.18/Headers"
+
+
+#
+# Install gr-soapy
+#
+(
+  P=gr-soapy
+  URL=https://gitlab.com/librespacefoundation/gr-soapy.git
+  CKSUM=git:6c31bc88d5908fd33fbc891271224a8ec782207f
+  BRANCH=6c31bc88d5908fd33fbc891271224a8ec782207f
+  T=${P}
+
+  # -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
+  LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DBoost_INCLUDE_DIR=${INSTALL_DIR}/usr/include \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}" \
   build_and_install_cmake \
     ${P} \
     ${URL} \
@@ -2535,74 +2854,13 @@ fi
     # aren't compatibile with MacOS (e.g. @rpath references or relative paths), fix them
     # up using the MacOS utility that exists 
     I "Fixing up any broken dylib references that exist... "
-    replace_bad_dylib_paths ${INSTALL_LIB_DIR}
-    replace_bad_dylib_paths ${INSTALL_GNURADIO_PYTHON_DIR}
+    replace_bad_dylib_paths ${INSTALL_DIR}
 
     # Mark this package as complete.
-    #touch ${DONE}
+    touch ${DONE}
 
   fi
 )
-
-
-
-#
-# Install libairspy
-#
-(
-  V=1.0.9
-  P=airspy-${V}
-  URL="https://github.com/airspy/airspyone_host/archive/v${V}/${P}.tar.gz"
-  CKSUM=git:5c86e53c484140a4a5038a24e4f40f4fb8e6240d
-  BRANCH=v1.0.9
-
-  EXTRA_OPTS="-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DCMAKE_C_FLAGS=\"-I${INSTALL_DIR}/usr/include\" ${TMP_DIR}/${T}" \
-  build_and_install_cmake \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
-)
-
-#
-# Install libmirisdr
-# FIXME: should this be uprev'd?
-#
-(
-  P=libmirisdr
-  URL=git://git.osmocom.org/libmirisdr.git
-  CKSUM=git:59ba3721b1cb7c746503d8de9c918f54fe7e8399
-  T=${P}
-  BRANCH=master
-
-  EXTRA_OPTS="" \
-  build_and_install_autotools \
-    ${P} \
-    ${URL} \
-    ${CKSUM} \
-    ${T} \
-    ${BRANCH}
-)
-
-exit 1
-
-#
-# Install gr-osmosdr
-#
-
-P=gr-osmosdr
-URL=git://git.osmocom.org/gr-osmosdr
-CKSUM=git:a45968f3381f33b86ca344bb76bd62c131d98d93
-T=${P}
-BRANCH=c653754dde5e2cf682965e939cc016fbddbd45e4
-
-LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
-EXTRA_OPTS="-DCMAKE_MACOSX_RPATH=OLD -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr -DPYTHON_EXECUTABLE=$(which ${PYTHON}) ${TMP_DIR}/${T}" \
-build_and_install_cmake \
-  ${P} \
-  ${URL} \
-  ${CKSUM} \
-  ${T} \
-  ${BRANCH}
 
 ## XXX: @CF: requires librsvg which requires Rust... meh!
 ##
@@ -2645,58 +2903,62 @@ build_and_install_cmake \
 #
 # Install some useful scripts
 #
-P=scripts
+(
+  P=scripts
 
-I creating grenv.sh script
+  I creating grenv.sh script
 cat > ${INSTALL_DIR}/usr/bin/grenv.sh <<- EOF
-  PYTHON=${PYTHON}
-  INSTALL_DIR=${INSTALL_DIR}
-  ULPP=\${INSTALL_DIR}/usr/lib/\${PYTHON}/site-packages
-  PYTHONPATH=\${ULPP}:\${PYTHONPATH}
-  GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
-  GRPP=\${GRSHARE}/python/site-packages
-  PYTHONPATH=\${GRPP}:\${PYTHONPATH}
-  PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
-  XDG_DATA_DIRS=\${INSTALL_DIR}/usr/share
+PYTHON=${PYTHON}
+INSTALL_DIR=${INSTALL_DIR}
+ULPP=${INSTALL_PYTHON_DIR}
+PYTHONPATH=\${ULPP}:\${PYTHONPATH}
+GRSHARE=\${INSTALL_DIR}/usr/share/gnuradio
+GRPP=${INSTALL_GNURADIO_PYTHON_DIR}
+PYTHONPATH=\${GRPP}:\${PYTHONPATH}
+PATH=\${INSTALL_DIR}/usr/bin:/opt/X11/bin:\${PATH}
+XDG_DATA_DIRS=\${INSTALL_DIR}/usr/share
 EOF
 
-if [ $? -ne 0 ]; then
-  E unable to create grenv.sh script
-fi
+  if [ $? -ne 0 ]; then
+    E unable to create grenv.sh script
+  fi
 
-cd ${INSTALL_DIR}/usr/lib/${PYTHON}/site-packages \
-&& \
-  for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
-    echo "DYLD_LIBRARY_PATH=\"\${ULPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
-  done \
-  && echo "" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-|| E failed to create grenv.sh;
+  cd ${INSTALL_PYTHON_DIR} \
+  && \
+    for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
+      echo "DYLD_LIBRARY_PATH=\"\${ULPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+    done \
+    && echo "" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh;
 
-cd ${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
-&& \
-  for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
-    echo "DYLD_LIBRARY_PATH=\"\${GRPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
-    echo "PYTHONPATH=\"\${GRPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
-  done \
-&& echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-&& echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-&& echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
-|| E failed to create grenv.sh
+  cd ${INSTALL_GNURADIO_PYTHON_DIR} \
+  && \
+    for j in $(for i in $(find * -name '*.so'); do dirname $i; done | sort -u); do \
+      echo "DYLD_LIBRARY_PATH=\"\${GRPP}/${j}:\${DYLD_LIBRARY_PATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+      echo "PYTHONPATH=\"\${GRPP}/${j}:\${PYTHONPATH}\"" >> ${INSTALL_DIR}/usr/bin/grenv.sh; \
+    done \
+  && echo "export DYLD_LIBRARY_PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PYTHONPATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export PATH" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  && echo "export XDG_DATA_DIRS" >> ${INSTALL_DIR}/usr/bin/grenv.sh \
+  || E failed to create grenv.sh
 
-I installing find-broken-dylibs script \
-&& mkdir -p ${INSTALL_DIR}/usr/bin \
-&& cat ${BUILD_DIR}/scripts/find-broken-dylibs.sh \
-    | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
-    > ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
-&& chmod +x ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
-|| E "failed to install 'find-broken-dylibs' script"
+  I installing find-broken-dylibs script \
+  && mkdir -p ${INSTALL_DIR}/usr/bin \
+  && cat ${BUILD_DIR}/scripts/find-broken-dylibs.sh \
+      | sed -e "s|@INSTALL_DIR@|${INSTALL_DIR}|g" \
+      > ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
+  && chmod +x ${INSTALL_DIR}/usr/bin/find-broken-dylibs \
+  || E "failed to install 'find-broken-dylibs' script"
 
-I installing run-grc script \
-&& mkdir -p ${INSTALL_DIR}/usr/bin \
-&& cat ${BUILD_DIR}/scripts/run-grc.sh \
-    > ${INSTALL_DIR}/usr/bin/run-grc \
-&& chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
-|| E "failed to install 'run-grc' script"
+  I installing run-grc script \
+  && mkdir -p ${INSTALL_DIR}/usr/bin \
+  && cat ${BUILD_DIR}/scripts/run-grc.sh \
+      > ${INSTALL_DIR}/usr/bin/run-grc \
+  && chmod +x ${INSTALL_DIR}/usr/bin/run-grc \
+  || E "failed to install 'run-grc' script"
+)
+
 
 #
 # Create the GNURadio.app bundle
@@ -2708,10 +2970,13 @@ I installing run-grc script \
   T=${P}
   BRANCH="master"
 
+
   #if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
+  I "Installing support scripts..."
+
   fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-  unpack ${P} ${URL} ${T} ${BRANCH} 
+  unpack ${P} ${URL} ${T}
 
     # create the gnuradio.icns
 
@@ -2737,7 +3002,6 @@ I installing run-grc script \
 )
 
 # create Info.plist
-
 mkdir -p ${CONTENTS_DIR} \
 && I creating Info.plist \
 && cat > ${CONTENTS_DIR}/Info.plist <<EOF
@@ -2850,7 +3114,7 @@ I created Info.plist
   #if [ ! -f ${TMP_DIR}/${P}.done ]; then
 
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T} ${BRANCH}
+    unpack ${P} ${URL} ${T}
     
     #XXX: @CF: add --eula option with GPLv3. For now, just distribute LICENSE in dmg
     
@@ -2897,7 +3161,7 @@ I created Info.plist
 
   I "finished creating GNURadio-${VERSION}.dmg"
 
-  #  touch ${TMP_DIR}/.${P}.done 
+    touch ${TMP_DIR}/.${P}.done 
   #fi
 )
 
@@ -2905,6 +3169,7 @@ I created Info.plist
 I ============================================================================
 I finding broken .dylibs and .so files in ${INSTALL_DIR}
 I ============================================================================
+export -n SHELLOPTS
 ${INSTALL_DIR}/usr/bin/find-broken-dylibs
 I ============================================================================
 
