@@ -435,6 +435,7 @@ function build_and_install_meson() {
   local PATHNAME=${6}
 
   export -n SHELLOPTS
+  export AR="/usr/bin/ar"
 
   if [ "" = "${T}" ]; then
     T=${P}
@@ -445,13 +446,15 @@ function build_and_install_meson() {
   else 
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}" "${PATHNAME}"
     unpack ${P} ${URL} ${T} ${BRANCH} "${PATHNAME}"
+
   
-    rm -Rf ${TMP_DIR}/${T}-build \
-    && mkdir ${TMP_DIR}/${T}-build \
-    && cd ${TMP_DIR}/${T} \
-    && AR="/usr/bin/ar" meson --prefix="${INSTALL_DIR}/usr" --buildtype=plain ${TMP_DIR}/${T}-build ${EXTRA_OPTS} \
-    && ninja -v -C ${TMP_DIR}/${T}-build  \
-    && ninja -C ${TMP_DIR}/${T}-build install \
+    rm -Rf ${TMP_DIR}/${T}-build
+    mkdir ${TMP_DIR}/${T}-build
+    cd ${TMP_DIR}/${T}
+
+    meson --prefix="${INSTALL_DIR}/usr" --buildtype=plain ${TMP_DIR}/${T}-build ${EXTRA_OPTS} && \
+	    ninja -v -C ${TMP_DIR}/${T}-build  && \
+	    ninja -C ${TMP_DIR}/${T}-build install \
     || E "failed to build ${P}"
   
     I "finished building and installing ${P}"
@@ -548,6 +551,7 @@ function build_and_install_autotools() {
   local T=${4}
   local BRANCH=${5}
   local CONFIGURE_CMD=${6}
+  local MVFROM=${7}
 
   export -n SHELLOPTS
   
@@ -564,29 +568,32 @@ function build_and_install_autotools() {
   else 
   
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T}
+    unpack ${P} ${URL} ${T} ${MVFROM}
   
     if [[ ( "" = "${SKIP_AUTORECONF}" && "" != "$(which autoreconf)"  ) || ! -f ${TMP_DIR}/${T}/configure ]]; then
       I "Running autoreconf in ${T}"
-      cd ${TMP_DIR}/${T} \
-        && autoreconf -if  \
-        || E "autoreconf failed for ${P}"
+      (
+        cd ${TMP_DIR}/${T}
+        autoreconf -if
+      ) || E "autoreconf failed for ${P}"
     fi
 
     if [[ "" = "${SKIP_LIBTOOLIZE}" && "" != "$(which libtoolize)" ]]; then
       I "Running libtoolize in ${T}"
-      cd ${TMP_DIR}/${T} \
-        && libtoolize -if \
-        || E "libtoolize failed for ${P}"
+      (
+        cd ${TMP_DIR}/${T}
+        libtoolize -if 
+      ) || E "libtoolize failed for ${P}"
     fi
 
     I "Configuring and building in ${T}"
-    cd ${TMP_DIR}/${T} \
-      && I "${CONFIGURE_CMD} ${EXTRA_OPTS}" \
-      && ${CONFIGURE_CMD} ${EXTRA_OPTS} \
-      && ${MAKE} \
-      && ${MAKE} install \
-      || E "failed to configure, make, and install ${P}"
+    (
+      cd ${TMP_DIR}/${T}
+      I "${CONFIGURE_CMD} ${EXTRA_OPTS}"
+      ${CONFIGURE_CMD} ${EXTRA_OPTS}
+      ${MAKE} 
+      ${MAKE} install
+    ) || E "failed to configure, make, and install ${P}"
   
     I "finished building and installing ${P}"
     touch ${TMP_DIR}/.${P}.done
@@ -1021,6 +1028,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL=https://tukaani.org/xz/${P}.tar.bz2
   CKSUM=sha256:3313fd2a95f43d88e44264e6b015e7d03053e681860b0d5d3f9baca79c57b7bf
 
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
+
   build_and_install_autotools \
     ${P} \
     ${URL} \
@@ -1035,6 +1045,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   P=tar-1.29
   URL=http://ftp.gnu.org/gnu/tar/tar-1.29.tar.bz2
   CKSUM=sha256:236b11190c0a3a6885bdb8d61424f2b36a5872869aa3f7f695dea4b4843ae2f2
+
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
 
   EXTRA_OPTS="--with-lzma=`which xz`"
   build_and_install_autotools \
@@ -1051,6 +1064,8 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   P=pkg-config-0.29.2
   URL=https://pkg-config.freedesktop.org/releases/${P}.tar.gz
   CKSUM=sha256:6fc69c01688c9458a57eb9a1664c9aba372ccda420a02bf4429fe610e7e7d591
+
+  SKIP_LIBTOOLIZE=true
 
   EXTRA_OPTS="--with-internal-glib" \
   build_and_install_autotools \
@@ -1101,8 +1116,13 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
   if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
+    export -n SHELLOPTS
+
     fetch "${P}" "${URL}" "" "" "${CKSUM}"
     unpack ${P} ${URL}
+
+    export CFLAGS="${CFLAGS} $(${PYTHON_CONFIG} --includes)"
+    export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
     cd ${TMP_DIR}/${T} \
       && sh bootstrap.sh --with-python-version=${PYTHON_VERSION} \
@@ -1110,6 +1130,8 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
         -j $(ncpus)                                  \
         -sLZMA_LIBRARY_PATH="${INSTALL_DIR}/usr/lib" \
         -sLZMA_INCLUDE="${INSTALL_DIR}/usr/include"  \
+	cflags='${CFLAGS}' \
+	cxxflags='${CFLAGS}' \
         stage \
       && rsync -avr stage/lib/ ${INSTALL_DIR}/usr/lib/ \
       && rsync -avr boost ${INSTALL_DIR}/usr/include \
@@ -1128,6 +1150,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   P=pcre-8.40
   URL=http://pilotfiber.dl.sourceforge.net/project/pcre/pcre/8.40/pcre-8.40.tar.gz
   CKSUM=sha256:1d75ce90ea3f81ee080cdc04e68c9c25a9fb984861a0618be7bbf676b18eda3e
+
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
 
   EXTRA_OPTS="--enable-utf" \
   build_and_install_autotools \
@@ -1163,11 +1188,64 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL=ftp://sourceware.org/pub/libffi/libffi-3.2.1.tar.gz
   CKSUM=sha256:d06ebb8e1d9a22d19e38d63fdb83954253f39bedc5d46232a05645685722ca37
 
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
+
   build_and_install_autotools \
     ${P} \
     ${URL} \
     ${CKSUM}
 )
+
+
+
+#
+# Install ninja
+#
+(
+  V=1.9.0
+  P=ninja-${V}
+  URL="https://github.com/ninja-build/ninja/archive/v${V}/${P}.tar.gz"
+  CKSUM=sha256:5d7ec75828f8d3fd1a0c2f31b5b0cea780cdfe1031359228c428c1a48bfcd5b9
+
+  export -n SHELLOPTS
+
+  if [ -f ${TMP_DIR}/.${P}.done ]; then
+    I "already installed ${P}"
+  else
+
+    fetch "${P}" "${URL}" "" "" "${CKSUM}"
+    unpack ${P} ${URL}
+  
+    # Ninja only produces a single binary; and doesn't really support "installing".
+    # We'll just copy it to /usr/bin.
+    cd ${TMP_DIR}/${P} \
+      && ./configure.py --bootstrap \
+      && cp ninja ${INSTALL_DIR}/usr/bin/ \
+      || E "failed to build ${P}"
+  
+    touch ${TMP_DIR}/.${P}.done
+    I "built and installed ${P}"
+
+  fi
+)
+
+
+#
+# Install meson
+# 
+(
+  V=0.51.2
+  P=meson-${V}
+  URL="https://github.com/mesonbuild/meson/releases/download/${V}/${P}.tar.gz"
+  CKSUM=sha256:23688f0fc90be623d98e80e1defeea92bbb7103bf9336a5f5b9865d36e892d76
+
+  build_and_install_setup_py \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
 
 
 #
@@ -1208,6 +1286,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL='http://iweb.dl.sourceforge.net/project/cppunit/cppunit/1.12.1/cppunit-1.12.1.tar.gz'
   CKSUM=sha256:ac28a04c8e6c9217d910b0ae7122832d28d9917fa668bcc9e0b8b09acb4ea44a
 
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
+
   build_and_install_autotools \
     ${P} \
     ${URL} \
@@ -1240,6 +1321,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   CKSUM=sha256:27d05534699735dc69e86add5b808d6cb35900ad3fd63fa82e3eb644336abfa0
 
   SKIP_AUTORECONF=yes \
+  SKIP_LIBTOOLIZE=true \
   build_and_install_autotools \
    ${P} \
    ${URL} \
@@ -1307,48 +1389,6 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 )
 
-
-#
-# Install ninja
-#
-(
-  V=1.9.0
-  P=ninja-${V}
-  URL="https://github.com/ninja-build/ninja/archive/v${V}/${P}.tar.gz"
-  CKSUM=sha256:5d7ec75828f8d3fd1a0c2f31b5b0cea780cdfe1031359228c428c1a48bfcd5b9
-
-  if [ ! -f ${TMP_DIR}/.${P}.done ]; then
-
-  fetch "${P}" "${URL}" "" "" "${CKSUM}"
-  unpack ${P} ${URL}
-
-  # Ninja only produces a single binary; and doesn't really support "installing".
-  # We'll just copy it to /usr/bin.
-  cd ${TMP_DIR}/${P} \
-    && ./configure.py --bootstrap \
-    && cp ninja ${INSTALL_DIR}/usr/bin/ \
-    || E "failed to build ${P}"
-
-  touch ${TMP_DIR}/.${P}.done
-
-  fi
-)
-
-
-#
-# Install meson
-# 
-(
-  V=0.51.2
-  P=meson-${V}
-  URL="https://github.com/mesonbuild/meson/releases/download/${V}/${P}.tar.gz"
-  CKSUM=sha256:23688f0fc90be623d98e80e1defeea92bbb7103bf9336a5f5b9865d36e892d76
-
-  build_and_install_setup_py \
-    ${P} \
-    ${URL} \
-    ${CKSUM}
-)
 
 
 #
@@ -1602,6 +1642,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL="https://github.com/pygobject/pycairo/releases/download/v${V}/${P}.tar.gz"
   CKSUM=sha256:70172e58b6bad7572a3518c26729b074acdde15e6fee6cbab6d3528ad552b786
 
+  export CFLAGS="${CFLAGS} $(${PYTHON_CONFIG} --includes)"
+  export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
+
   build_and_install_meson \
     ${P} \
     ${URL} \
@@ -1619,6 +1662,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL="http://ftp.gnome.org/pub/gnome/sources/gobject-introspection/${V}/gobject-introspection-${VV}.tar.xz"
   CKSUM=sha256:b1ee7ed257fdbc008702bdff0ff3e78a660e7e602efa8f211dc89b9d1e7d90a2
 
+  export CFLAGS="${CFLAGS} $(${PYTHON_CONFIG} --includes)"
+  export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
+
   build_and_install_meson \
     ${P} \
     ${URL} \
@@ -1634,6 +1680,8 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL="https://github.com/GNOME/pygobject/archive/${V}/pygobject-${V}.tar.gz"
   CKSUM=sha256:fe05538639311fe3105d6afb0d7dfa6dbd273338e5dea61354c190604b85cbca
 
+  export CFLAGS="${CFLAGS} $(${PYTHON_CONFIG} --includes)"
+  export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
 
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I "already installed ${P}"
@@ -1858,6 +1906,9 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   URL="https://github.com/numpy/numpy/releases/download/v${V}/${P}.tar.gz"
   CKSUM=sha256:81a4f748dcfa80a7071ad8f3d9f8edb9f8bc1f0a9bdd19bfd44fd42c02bd286c
 
+  export CFLAGS="${CFLAGS} $(${PYTHON_CONFIG} --includes)"
+  export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
+
   build_and_install_setup_py \
     ${P} \
     ${URL} \
@@ -1896,7 +1947,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   if [ ! -f ${TMP_DIR}/.${P}.done ]; then
 
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
-    unpack ${P} ${URL} ${T} ${BRANCH}
+    unpack ${P} ${URL} ${T}
     
     cd ${TMP_DIR}/${T}/src \
     && rm -f Makefile \
@@ -2112,6 +2163,25 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 
 #
+# Install gmp
+# 
+(
+  V=6.1.2
+  P=gmp-${V}
+  URL="https://gmplib.org/download/gmp/${P}.tar.xz"
+  CKSUM=sha256:87b565e89a9a684fe4ebeeddb8399dce2599f9c9049854ca8c0dfbdea0e21912
+
+  EXTRA_OPTS=" --enable-cxx" \
+  SKIP_AUTORECONF=true \
+  SKIP_LIBTOOLIZE=true \
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+
+#
 # Install python requests
 #
 (
@@ -2245,6 +2315,8 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   T=${P}
   BRANCH=""
 
+  export -n SHELLOPTS
+
   if [ -f ${TMP_DIR}/.${P}.done ]; then
       I "already installed ${P}"
   else
@@ -2254,7 +2326,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
     fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
     unpack ${P} ${URL} ${T} ${BRANCH}
-    
+
     I configuring ${P} \
     && cd ${TMP_DIR}/${T} \
     && export OPENSOURCE_CXXFLAGS=" -D__USE_WS_X11__ " \
@@ -2315,7 +2387,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     fi
 
     touch ${TMP_DIR}/.${P}.done
-
+    true
   fi
 )
 
@@ -2339,14 +2411,6 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     ${P} \
     ${URL} \
     ${CKSUM} \
-
-  # A mix of gnuradio's search paths and libqwt's pkg-config mean that gnuradio is currently unable
-  # to find libqwt -- gnuradio assumes that macos /usr/lib is immutable; and thus the library cannot be
-  # there -- even it it's accepted a sysroot prefix. libqwt seems to incorrectly populate its pkg-config files.
-  #
-  # Either way, the thing that makes both of them the most happy is just to symlink qwt to the place and name
-  # that GNUradio expects.
-  ln -sf ${INSTALL_DIR}/usr/lib/qwt.framework/Versions/6/qwt ${INSTALL_DIR}/usr/lib/libqwt-qt5.dylib
 )
 
 #
@@ -2360,6 +2424,8 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   CKSUM=sha256:5436b61a78f48c7e8078e93a6b59453ad33780f80c644e5f3af39f94be1ede44
   T=${P}
   BRANCH=""
+
+  export -n SHELLOPTS
 
   if [ -f ${TMP_DIR}/.${P}.done ]; then
     I already installed ${P}
@@ -2391,13 +2457,14 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 (
   # For now, we'll need to use a development snapshot until issues with PyQt5 and SIP are resolved
   # in a stable release.
-  V=5.13.2.dev1910041539
+  V=5.13.1
   P=PyQt5_gpl-${V}
-  #URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${V}/${P}.tar.gz"
-  URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${P}.tar.gz" # development snapshot URL
-  CKSUM=sha256:58922339044840e168443bf0654944a9ea9e9ee3574283fb26c778bd09f79de5
+  URL="https://www.riverbankcomputing.com/static/Downloads/PyQt5/${V}/${P}.tar.gz"
+  CKSUM=sha256:54b7f456341b89eeb3930e786837762ea67f235e886512496c4152ebe106d4af
   T=${P}
   BRANCH=""
+
+  export -n SHELLOPTS
 
 
   if [ -f ${TMP_DIR}/.${P}.done ]; then
@@ -2437,7 +2504,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
       touch ${TMP_DIR}/.${P}.done
 
 fi
-) || E "failed to build Qt5"
+) || E "failed to build PyQt5"
 
 #
 # Install six
@@ -2491,16 +2558,34 @@ fi
 )
 
 
+
+#
+# Install log4cpp
+#
+(
+  V=1.1.3
+  P=log4cpp-${V}
+  URL="https://downloads.sourceforge.net/log4cpp/${P}.tar.gz"
+  CKSUM=sha256:2cbbea55a5d6895c9f0116a9a9ce3afb86df383cd05c9d6c1a4238e5e5c8f51d
+  MVFROM="log4cpp"
+
+  SKIP_AUTORECONF=true
+  SKIP_LIBTOOLIZE=true
+  
+  build_and_install_autotools \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${P} \
+    "" \
+    "" \
+    ${MVFROM}
+)
+
+
 #
 # Install gnuradio
 #
-
-# Issues:
-#  -- grabbing the wrong Python
-#  -- ?: gmp
-#  -- ?: mpir > 3.0
-#  -- ?: portaudio
-#  -- ?: click, for gr_modtool?
 (
   P=gnuradio
   URL=git://github.com/gnuradio/gnuradio.git
@@ -2537,6 +2622,9 @@ fi
       -DGR_PYTHON_DIR=${INSTALL_DIR}/usr/share/gnuradio/python/site-packages \
       -DBoost_NO_BOOST_CMAKE=ON \
       -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON \
+      -DQWT_LIBRARIES=${INSTALL_DIR}/usr/lib/qwt.framework/Versions/6/qwt \
+      -DQWT_INCLUDE_DIRS=${INSTALL_DIR}/usr/lib/qwt.framework/Versions/6/Headers \
+      -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
       ${TMP_DIR}/${T} \
     " \
     build_and_install_cmake \
