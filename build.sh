@@ -3,12 +3,6 @@
 set -e
 trap 'echo E: build failed with error on ${LINENO}; exit 1' ERR
 
-#
-# TODO:
-#    - we're probably missing libjpeg-9
-#    - we're probably missing libunistring
-#
-
 # Ensure our subshells inherit our "set -e".
 export SHELLOPTS
 
@@ -1364,7 +1358,6 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     export LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
     export CFLAGS="${CFLAGS}"
     export CXXFLAGS="${CPPFLAGS}"
-    export DESTDIR="${INSTALL_DIR}"
 
     EXTRA_OPTS="--with-c_glib --without-cpp --with-libevent --with-python --without-csharp --without-d --without-erlang"
     EXTRA_OPTS="${EXTRA_OPTS} --without-go --without-haskell --without-java --without-lua --without-nodejs --without-perl"
@@ -1875,6 +1868,42 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
     ${P} \
     ${URL} \
     ${CKSUM}
+)
+
+
+
+#
+# Install the Adwaita GTK icon theme.
+#
+(
+  set -e
+
+  # Note: building the Adwaita theme currently requires SVG rendering capabilities,
+  # and we don't want to carry around some of the tools it prefers to use (e.g. Inkscape).
+  # Instead, we'll grab pre-rendered images from the Arch package.
+
+  V=3.34.0-1
+  P=adwaita-icon-theme-${V}
+  FILENAME=${P}-any.pkg.tar.xz
+  URL="http://mirror.chaoticum.net/arch/extra/os/x86_64/${FILENAME}"
+  CKSUM=sha256:0fc25d5b4c345ac2ccc90dbbcd17bcabe4344f35f10d2eac372d7fa86b067749
+
+  if [ ! -f ${TMP_DIR}/.${P}.done ]; then
+    I "Installing the Adwaita icon theme."
+
+    # Grab the archive, and extract it directly into our sysroot.
+    fetch "${P}" "${URL}" "${T}" "${BRANCH}" "${CKSUM}"
+    tar -xvf ${TMP_DIR}/${FILENAME} -C ${INSTALL_DIR}
+
+    # Remove the Arch metadata files.
+    for i in .PKGINFO .BUILDINFO .MTREE; do
+      rm -f ${INSTALL_DIR}/${i}
+    done
+
+    # And mark our install as complete.
+    touch ${TMP_DIR}/.${P}.done
+  fi
+
 )
 
 
