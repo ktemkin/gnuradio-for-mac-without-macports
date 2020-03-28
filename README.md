@@ -26,6 +26,7 @@ Currently tested platforms include:
 * HackRF
 * LimeSDR
 * RTLSDR
+* UHD
 
 
 If you've successfully tested one of the other backends, feel free to PR an addition to this list. :)
@@ -41,7 +42,7 @@ There are two software requirements you'll need to install first:
 <a href="https://www.python.org/downloads/" target="_blank"><img src="https://www.python.org/static/img/python-logo.png" /></a>
 <a href="https://www.xquartz.org/" target="_blank"><img src="https://www.xquartz.org/Xlogo.png" /></a>
 
-Please download and install the Python 3.7 release from the link provided.
+You must install Python 3.7 using the python.org installer; GNURadio.app can't use the version installed with macOS (or MacPorts or Homebrew).
 
 
 
@@ -53,7 +54,16 @@ Simply [download a release](https://github.com/ktemkin/gnuradio-for-mac-without-
 
 <a href="https://github.com/cfriedt/gnuradio-for-mac-without-macports/releases" target="_blank"><img src="https://raw.githubusercontent.com/ktemkin/gnuradio-for-mac-without-macports/master/screenshot.png" /></a>
 
+## Additional steps for specific platforms
 
+### UHD
+
+You'll need to download the USRP firmware images with the `uhd_images_downloader.py` tool.
+
+```bash
+$ /Library/Frameworks/Python.framework/Versions/3.7/bin/pip install six requests
+$ /Applications/GNURadio.app/Contents/MacOS/usr/lib/uhd/utils/uhd_images_downloader.py
+```
 
 ## Motivation
 
@@ -63,7 +73,7 @@ Some users just do not want to install [MacPorts](https://www.macports.org) only
 
 ## Getting Started
 
-After you have installed GNURadio, check out the [Tutorials](http://gnuradio.org/redmine/projects/gnuradio/wiki/Tutorials).
+After you have installed GNURadio, check out the [Tutorials](https://wiki.gnuradio.org/index.php/Tutorials).
 
 Once you are confident with using some basic blocks, and if you don't already have an [SDR](https://en.wikipedia.org/wiki/Software-defined_radio) you might want to consider purchasing one. [RTL-SDR](http://www.rtl-sdr.com/) has a good [roundup of SDR devices](http://www.rtl-sdr.com/roundup-software-defined-radios/).
 
