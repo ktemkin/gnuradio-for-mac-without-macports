@@ -2922,9 +2922,9 @@ install_bladerf_bitstream_if_needed "x115" "604b12af77ce4f34db061e9eca4a38d804f6
 #
 (
   P=gr-osmosdr
-  URL=git://github.com/igorauad/gr-osmosdr # Use an alternate tree until upstream catches up with GNUradio 3.8 support.
-  CKSUM=git:f3905d3510dfb3851f946f097a9e2ddaa5fb333b
-  BRANCH=f3905d3510dfb3851f946f097a9e2ddaa5fb333b
+  URL=https://github.com/osmocom/gr-osmosdr.git
+  CKSUM=git:af2fda22b3b3745520ef38e9aaa757484871ee0c
+  BRANCH=af2fda22b3b3745520ef38e9aaa757484871ee0c
   T=${P}
 
   LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
