@@ -1295,7 +1295,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 #
 # Install mako
-# 
+#
 (
   P=Mako-1.0.3
   URL="${GENTOO_MIRROR}/${P}.tar.gz"
@@ -1328,11 +1328,11 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 #
 # Install OpenSSL
-# 
+#
 (
-  P=openssl-1.1.0d
-  URL='https://www.openssl.org/source/openssl-1.1.0d.tar.gz'
-  CKSUM=sha256:7d5ebb9e89756545c156ff9c13cf2aa6214193b010a468a3bc789c3c28fe60df
+  P=openssl-1.1.1f
+  URL="https://www.openssl.org/source/${P}.tar.gz"
+  CKSUM=sha256:186c6bfe6ecfba7a5b48c47f8a1673d0f3b0e5ba2e25602dd23b629975da3f35
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
