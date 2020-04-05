@@ -65,6 +65,11 @@ $ /Library/Frameworks/Python.framework/Versions/3.7/bin/pip install six requests
 $ /Applications/GNURadio.app/Contents/MacOS/usr/lib/uhd/utils/uhd_images_downloader.py
 ```
 
+### Trackpad users
+
+If you're using a trackpad you'll need a way to emulate a middle-click, especially for configuring the GUI blocks. One such tool is [MiddleClick](https://github.com/DaFuqtor/MiddleClick-Catalina).
+
+
 ## Motivation
 
 Some users just do not want to install [MacPorts](https://www.macports.org) only to use GNURadio. We get it. To each their own.
