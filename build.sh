@@ -10,6 +10,8 @@ export SHELLOPTS
 GNURADIO_BRANCH=3.8.0.0
 GNURADIO_COMMIT_HASH=git:4cc4c74c10411235fb36de58be09022c5573dbd8
 
+GENTOO_MIRROR=https://mirrors.evowise.com/gentoo/distfiles
+
 # default os x path minus /usr/local/bin, which could have pollutants
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
@@ -298,7 +300,7 @@ function unpack() {
     fi
   fi
 
-  D "Looking for an archive matching '${NAME}."
+  D "Looking for an archive matching '${NAME}'"
 
   if [ "git" = "${URL:0:3}" -o "" != "${BRANCH}" ]; then
     I "git repository has been refreshed"
@@ -306,6 +308,7 @@ function unpack() {
     local opts=
     local cmd=
     local Z=
+
     if [ 1 -eq 0 ]; then
       echo 
     elif [ -e ${TMP_DIR}/${NAME}.zip ]; then
@@ -332,7 +335,7 @@ function unpack() {
       cmd=tar
       opts=xpJf
     fi
-    
+
     I "Extracting ${Z} to ${T}"
     rm -Rf ${TMP_DIR}/${T}
     cd ${TMP_DIR} \
@@ -1104,7 +1107,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 # 
 (
   P=boost_1_71_0
-  URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/${P}.tar.bz2
+  URL="$GENTOO_MIRROR/${P}.tar.bz2"
   CKSUM=sha256:d73a8da01e8bf8c7eda40b4c84915071a8c8a0df4a6734537ddde4a8580524ee
   T=${P}
 
@@ -1292,10 +1295,10 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 #
 # Install mako
-# 
+#
 (
   P=Mako-1.0.3
-  URL=https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/Mako-1.0.3.tar.gz
+  URL="${GENTOO_MIRROR}/${P}.tar.gz"
   CKSUM=sha256:7644bc0ee35965d2e146dde31827b8982ed70a58281085fac42869a09764d38c
 
   LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)"
@@ -1325,11 +1328,11 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 
 #
 # Install OpenSSL
-# 
+#
 (
-  P=openssl-1.1.0d
-  URL='https://www.openssl.org/source/openssl-1.1.0d.tar.gz'
-  CKSUM=sha256:7d5ebb9e89756545c156ff9c13cf2aa6214193b010a468a3bc789c3c28fe60df
+  P=openssl-1.1.1f
+  URL="https://www.openssl.org/source/${P}.tar.gz"
+  CKSUM=sha256:186c6bfe6ecfba7a5b48c47f8a1673d0f3b0e5ba2e25602dd23b629975da3f35
 
   SKIP_AUTORECONF=yes \
   SKIP_LIBTOOLIZE=yes \
@@ -1482,7 +1485,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 # 
 (
   P=libpng-1.6.37
-  URL="https://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/${P}.tar.xz"
+  URL="${GENTOO_MIRROR}/${P}.tar.xz"
   CKSUM=sha256:505e70834d35383537b6491e7ae8641f1a4bed1876dbfe361201fc80868d88ca
 
   SKIP_AUTORECONF=true \
@@ -1540,8 +1543,8 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 # 
 (
   P=freetype-2.10.1
-  URL="http://mirror.csclub.uwaterloo.ca/nongnu//freetype/${P}.tar.gz"
-  CKSUM=sha256:3a60d391fd579440561bf0e7f31af2222bc610ad6ce4d9d7bd2165bca8669110
+  URL="${GENTOO_MIRROR}/${P}.tar.xz"
+  CKSUM=sha256:16dbfa488a21fe827dc27eaf708f42f7aa3bb997d745d31a19781628c36ba26f
 
   SKIP_AUTORECONF=yes
   SKIP_LIBTOOLIZE=yes
@@ -1885,7 +1888,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
   V=3.34.0-1
   P=adwaita-icon-theme-${V}
   FILENAME=${P}-any.pkg.tar.xz
-  URL="http://mirror.chaoticum.net/arch/extra/os/x86_64/${FILENAME}"
+  URL="http://archive.virtapi.org/packages/a/adwaita-icon-theme/${FILENAME}"
   CKSUM=sha256:0fc25d5b4c345ac2ccc90dbbcd17bcabe4344f35f10d2eac372d7fa86b067749
 
   if [ ! -f ${TMP_DIR}/.${P}.done ]; then
@@ -2000,7 +2003,7 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 #
 (
   P=libf2c-20130927
-  URL=http://mirror.csclub.uwaterloo.ca/gentoo-distfiles/distfiles/libf2c-20130927.zip
+  URL="${GENTOO_MIRROR}/${P}.zip"
   CKSUM=sha256:5dff29c58b428fa00cd36b1220e2d71b9882a658fdec1aa094fb7e6e482d6765
   T=${P}
   BRANCH=""
@@ -2233,11 +2236,12 @@ ln -sf ${PYTHON_CONFIG} ${INSTALL_DIR}/usr/bin/python-config
 (
   P=uhd
   URL=git://github.com/EttusResearch/uhd.git
-  CKSUM=git:18bc320dc3348346255ab0d33aa319fb2618d7b3
-  BRANCH=18bc320dc3348346255ab0d33aa319fb2618d7b3
+  CKSUM=git:aea0e2de34803d5ea8f25d7cf2fb08f4ab9d43f0
+  BRANCH=aea0e2de34803d5ea8f25d7cf2fb08f4ab9d43f0  # 3.15.0
 
   EXTRA_OPTS="\
     -DENABLE_E300=ON \
+    -DENABLE_X300=OFF \
     -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
     -DPYTHON_EXECUTABLE=${PYTHON} \
     '-DCMAKE_C_FLAGS=-framework Python' \
@@ -2596,19 +2600,16 @@ fi
   P=log4cpp-${V}
   URL="https://downloads.sourceforge.net/log4cpp/${P}.tar.gz"
   CKSUM=sha256:2cbbea55a5d6895c9f0116a9a9ce3afb86df383cd05c9d6c1a4238e5e5c8f51d
-  MVFROM="log4cpp"
+  T=log4cpp
 
   SKIP_AUTORECONF=true
   SKIP_LIBTOOLIZE=true
-  
+
   build_and_install_autotools \
     ${P} \
     ${URL} \
     ${CKSUM} \
-    ${P} \
-    "" \
-    "" \
-    ${MVFROM}
+    ${T}
 )
 
 
@@ -2967,8 +2968,8 @@ install_soapy_plugin_if_needed "PlutoSDR" "e28e4f5c68c16a38c0b50b9606035f3267a13
 (
   P=gr-soapy
   URL=https://gitlab.com/librespacefoundation/gr-soapy.git
-  CKSUM=git:6c31bc88d5908fd33fbc891271224a8ec782207f
-  BRANCH=6c31bc88d5908fd33fbc891271224a8ec782207f
+  CKSUM=git:a68d05c1f4d069deb7c0efe2a73137ad6cb91c73
+  BRANCH=a68d05c1f4d069deb7c0efe2a73137ad6cb91c73
   T=${P}
 
   # -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
@@ -3291,8 +3292,8 @@ I created Info.plist
 #
 (
   P=create-dmg
-  URL=http://github.com/andreyvit/create-dmg.git
-  CKSUM=git:5acf22fa87e1b751701f377efddc7429877ecb0a
+  URL=https://github.com/beaugunderson/create-dmg.git
+  CKSUM=git:2ca05eb08f852b07c4e9e15feda257deaf45fba3
   T=${P}
   BRANCH=master
 
@@ -3340,6 +3341,7 @@ I created Info.plist
       --hide-extension GNURadio.app \
       --app-drop-link 412 190 \
       --icon-size 100 \
+      --skip-jenkins \
       ${BUILD_DIR}/GNURadio-${VERSION}.dmg \
       ${TMP_DIR}/${P}/temp \
     || E "failed to create GNURadio-${VERSION}.dmg"

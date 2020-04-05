@@ -1,0 +1,41 @@
+version: 2.1
+
+jobs:
+  build:
+    macos:
+      xcode: 11.1.0
+
+    environment:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+
+    steps:
+      - checkout
+
+      - run:
+          name: Log CI environment
+          command: ./scripts/log-ci-environment.sh
+
+      - run:
+          name: Install dependencies
+          command: ./scripts/install-ci-dependencies.sh
+
+      - run:
+          name: Build
+          command: |
+            ./build.sh 2>&1 | ts -i
+          no_output_timeout: 120m
+
+      - run:
+          name: Log used space
+          command: du -d 2 -h
+          when: always
+
+      - run:
+          name: Move artifacts
+          command: |
+            mkdir /tmp/artifacts
+            mv *.dmg /tmp/artifacts
+
+      - store_artifacts:
+          path: /tmp/artifacts
+          destination: build
