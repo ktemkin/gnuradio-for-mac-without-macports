@@ -2948,6 +2948,36 @@ install_bladerf_bitstream_if_needed "x115" "604b12af77ce4f34db061e9eca4a38d804f6
 
 
 #
+# Install gr-fosphor
+#
+(
+  P=gr-fosphor
+  URL=https://github.com/osmocom/gr-fosphor.git
+  CKSUM=git:2d4fe78b43bb67907722f998feeb4534ecb1efa8
+  BRANCH=2d4fe78b43bb67907722f998feeb4534ecb1efa8
+  T=${P}
+
+  LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DBoost_NO_BOOST_CMAKE=ON \
+    -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON \
+    -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${T} \
+    ${BRANCH}
+)
+
+
+#
 # Install our supported Soapy plugins.
 #
 install_soapy_plugin_if_needed "BladeRF"   "1c1e8aaba5e8ee154b34c6c3b17743d1c9b9a1ea"
