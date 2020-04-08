@@ -2922,9 +2922,39 @@ install_bladerf_bitstream_if_needed "x115" "604b12af77ce4f34db061e9eca4a38d804f6
 #
 (
   P=gr-osmosdr
-  URL=git://github.com/igorauad/gr-osmosdr # Use an alternate tree until upstream catches up with GNUradio 3.8 support.
-  CKSUM=git:f3905d3510dfb3851f946f097a9e2ddaa5fb333b
-  BRANCH=f3905d3510dfb3851f946f097a9e2ddaa5fb333b
+  URL=https://github.com/osmocom/gr-osmosdr.git
+  CKSUM=git:af2fda22b3b3745520ef38e9aaa757484871ee0c
+  BRANCH=af2fda22b3b3745520ef38e9aaa757484871ee0c
+  T=${P}
+
+  LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
+  EXTRA_OPTS="\
+    -DCMAKE_MACOSX_RPATH=OLD \
+    -DCMAKE_INSTALL_NAME_DIR=${INSTALL_DIR}/usr/lib \
+    -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR}/usr \
+    -DPYTHON_EXECUTABLE=$(which ${PYTHON}) \
+    -DBoost_NO_BOOST_CMAKE=ON \
+    -DPKG_CONFIG_USE_CMAKE_PREFIX_PATH=ON \
+    -DCMAKE_PREFIX_PATH=${INSTALL_DIR} \
+    -DCMAKE_IGNORE_PATH=/usr/local/lib;/usr/local/include \
+    ${TMP_DIR}/${T}" \
+  build_and_install_cmake \
+    ${P} \
+    ${URL} \
+    ${CKSUM} \
+    ${T} \
+    ${BRANCH}
+)
+
+
+#
+# Install gr-fosphor
+#
+(
+  P=gr-fosphor
+  URL=https://github.com/osmocom/gr-fosphor.git
+  CKSUM=git:2d4fe78b43bb67907722f998feeb4534ecb1efa8
+  BRANCH=2d4fe78b43bb67907722f998feeb4534ecb1efa8
   T=${P}
 
   LDFLAGS="${LDFLAGS} $(${PYTHON_CONFIG} --ldflags)" \
