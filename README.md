@@ -86,7 +86,7 @@ Once you are confident with using some basic blocks, and if you don't already ha
 
 ## Advanced Usage: Out of Tree Modules
 
-There are only a few extra steps to use before following [Out of Tree Module Guide](http://gnuradio.org/redmine/projects/gnuradio/wiki/OutOfTreeModules).
+There are only a few extra steps to use before following [Out of Tree Module Guide](https://wiki.gnuradio.org/index.php/OutOfTreeModules).
 
 TODO: write #exactsteps [Issue #9](https://github.com/cfriedt/gnuradio-for-mac-without-macports/issues/9)
 
