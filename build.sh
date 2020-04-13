@@ -6,9 +6,9 @@ trap 'echo E: build failed with error on ${LINENO}; exit 1' ERR
 # Ensure our subshells inherit our "set -e".
 export SHELLOPTS
 
-# Currently, we build gnuradio 3.8 for Python3.7.
-GNURADIO_BRANCH=3.8.0.0
-GNURADIO_COMMIT_HASH=git:4cc4c74c10411235fb36de58be09022c5573dbd8
+# Currently, we build gnuradio 3.8.1.0 for Python3.7.
+GNURADIO_BRANCH=maint-3.8
+GNURADIO_COMMIT_HASH=git:867b0ab9191ff6c6d5d8f49b5b95fdd884e92a07
 
 GENTOO_MIRROR=https://mirrors.evowise.com/gentoo/distfiles
 
