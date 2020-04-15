@@ -2620,7 +2620,7 @@ fi
   P=gnuradio
   URL=git://github.com/gnuradio/gnuradio.git
 
-  BRANCH=v${GNURADIO_BRANCH}
+  BRANCH=${GNURADIO_BRANCH}
   CKSUM=${GNURADIO_COMMIT_HASH}
   T=${P}
 
