@@ -7,7 +7,7 @@ trap 'echo E: build failed with error on ${LINENO}; exit 1' ERR
 export SHELLOPTS
 
 # Currently, we build gnuradio 3.8.1.0 for Python3.7.
-GNURADIO_BRANCH=maint-3.8
+GNURADIO_BRANCH=v3.8.1.0
 GNURADIO_COMMIT_HASH=git:867b0ab9191ff6c6d5d8f49b5b95fdd884e92a07
 
 GENTOO_MIRROR=https://mirrors.evowise.com/gentoo/distfiles
