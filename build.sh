@@ -2574,6 +2574,36 @@ fi
 )
 
 #
+# Install click
+#
+(
+  V=8.0.1
+  P=click-${V}
+  URL="https://files.pythonhosted.org/packages/21/83/308a74ca1104fe1e3197d31693a7a2db67c2d4e668f20f43a2fca491f9f7/${P}.tar.gz"
+  CKSUM=sha256:8c04c11192119b1ef78ea049e0a6f0463e4c48ef00a30160c704337586f3ad7a
+
+  build_and_install_setup_py \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+#
+# Install click-plugins
+#
+(
+  V=1.1.1
+  P=click-plugins-${V}
+  URL="https://files.pythonhosted.org/packages/5f/1d/45434f64ed749540af821fd7e42b8e4d23ac04b1eda7c26613288d6cd8a8/${P}.tar.gz"
+  CKSUM=sha256:46ab999744a9d831159c3411bb0c79346d94a444df9a3a3742e9ed63645f264b
+
+  build_and_install_setup_py \
+    ${P} \
+    ${URL} \
+    ${CKSUM}
+)
+
+#
 # Install libidn
 #
 (
@@ -2635,7 +2665,8 @@ fi
     unpack ${P} ${URL} ${T}
 
     # Pull down the relevant version of Volk.
-    git submodule update --init  
+    git pull --recurse-submodules=on
+    git submodule update --init
 
     PYTHONPATH=${PYTHONPATH} \
     EXTRA_OPTS="\
